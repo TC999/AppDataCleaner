@@ -81,25 +81,25 @@ impl eframe::App for AppDataCleaner {
         }
 
         // 删除确认弹窗逻辑
-        if let Some((folder_name, _)) = &self.confirm_delete {
-            let message = format!("确定要彻底删除文件夹 {} 吗？", folder_name);
-            logger::log_info(&message);
-            if let Some(confirm) = confirmation::show_confirmation(ctx, &message) {
-                if confirm {
-                    if let Some(base_path) = utils::get_appdata_dir(&self.selected_appdata_folder) {
-                        let full_path = base_path.join(folder_name);
-                        if let Err(err) = delete::delete_folder(&full_path) {
-                            eprintln!("Error: {}", err);
-                            logger::log_error(&format!("Error: {}", err));
-                        }
-                    } else {
-                        eprintln!("无法获取 {} 文件夹路径", self.selected_appdata_folder);
-                        logger::log_error(&format!("无法获取 {} 文件夹路径", self.selected_appdata_folder));
-                    }
-                }
-                self.confirm_delete = None; // 清除状态
-            }
-        }
+        //if let Some((folder_name, _)) = &self.confirm_delete {
+        //    let message = format!("确定要彻底删除文件夹 {} 吗？", folder_name);
+        //    logger::log_info(&message);
+        //    if let Some(confirm) = confirmation::show_confirmation(ctx, &message) {
+        //        if confirm {
+        //            if let Some(base_path) = utils::get_appdata_dir(&self.selected_appdata_folder) {
+        //                let full_path = base_path.join(folder_name);
+        //                if let Err(err) = delete::delete_folder(&full_path) {
+        //                    eprintln!("Error: {}", err);
+        //                    logger::log_error(&format!("Error: {}", err));
+        //                }
+        //            } else {
+        //                eprintln!("无法获取 {} 文件夹路径", self.selected_appdata_folder);
+        //                logger::log_error(&format!("无法获取 {} 文件夹路径", self.selected_appdata_folder));
+        //            }
+        //        }
+        //        self.confirm_delete = None; // 清除状态
+        //    }
+        //}
 
         // 顶部菜单
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
@@ -180,6 +180,15 @@ impl eframe::App for AppDataCleaner {
                         if !self.ignored_folders.contains(folder) {
                             if ui.button("彻底删除").clicked() {
                                 self.confirm_delete = Some((folder.clone(), false));
+                            }
+                            
+                            if let Some((folder_name, _)) = &self.confirm_delete {
+                                confirmation::handle_delete_confirmation(
+                                    ctx,
+                                    folder_name,
+                                    &self.selected_appdata_folder,
+                                    &mut self.confirm_delete,
+                                );
                             }
                             if ui.button("移动").clicked() {
                                 // 移动逻辑
