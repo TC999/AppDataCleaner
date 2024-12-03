@@ -180,6 +180,7 @@ impl eframe::App for AppDataCleaner {
                         if !self.ignored_folders.contains(folder) {
                             if ui.button("彻底删除").clicked() {
                                 if let Some((folder_name, _)) = self.confirm_delete.clone() {
+                                    logger::log_info("调用 handle_delete_confirmation 函数");
                                     confirmation::handle_delete_confirmation(
                                         ctx,
                                         &folder_name,
@@ -188,6 +189,7 @@ impl eframe::App for AppDataCleaner {
                                     );
                                 
                                     if self.confirm_delete.is_none() {
+                                        println!("彻底删除操作已取消");
                                         logger::log_info("确认窗口关闭，操作完成或取消。");
                                     }
                                 }
