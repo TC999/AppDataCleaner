@@ -1,5 +1,5 @@
 use eframe::egui;
-use crate::{delete, logger, utils}; // 引入需要的模块
+use crate::{delete, logger, utils};
 
 pub fn handle_delete_confirmation(
     ctx: &egui::Context,

@@ -179,16 +179,14 @@ impl eframe::App for AppDataCleaner {
 
                         if !self.ignored_folders.contains(folder) {
                             if ui.button("彻底删除").clicked() {
-                                self.confirm_delete = Some((folder.clone(), false));
-                            }
-                            
-                            if let Some((folder_name, _)) = &self.confirm_delete {
-                                confirmation::handle_delete_confirmation(
-                                    ctx,
-                                    folder_name,
-                                    &self.selected_appdata_folder,
-                                    &mut self.confirm_delete,
-                                );
+                                if let Some(folder_name) = self.confirm_delete.as_ref().map(|(folder, _)| folder) {
+                                    confirmation::handle_delete_confirmation(
+                                        ctx,
+                                        folder_name,
+                                        &self.selected_appdata_folder,
+                                        &mut self.confirm_delete,
+                                    );
+                                }
                             }
                             if ui.button("移动").clicked() {
                                 // 移动逻辑
