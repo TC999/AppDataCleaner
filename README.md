@@ -87,6 +87,10 @@ cargo build --release
 
 或者前往[这个讨论](https://github.com/TC999/AppDataCleaner/discussions/7)查看更多待办事项。
 ## ✨ 贡献
+> [!note]
+>
+> 本仓库要求提交时验证GPG签名。[GPG签名设置方法][github-doc-gpg-url]
+
 1. 复刻本仓库
 2. 创建一个分支并以你修改的功能命名，注意每个功能单独一个代码文件（作为模块导入）
 3. 提交你的修改
