@@ -184,32 +184,13 @@ impl eframe::App for AppDataCleaner {
                                 self.confirm_delete = Some((folder.clone(), false));
                             }
                             if ui.button("移动").clicked() {
-                                println!("show_move_dialog is called");
-                                let folder_path = utils::get_appdata_dir(&self.selected_appdata_folder)
-                                    .unwrap_or_default()
-                                    .join(folder);
-                            
-                                move_module::show_move_dialog(ctx, folder, &folder_path, |target_path| {
-                                    println!("Confirmed move to {:?}", target_path);
-                                    let progress = |p: f64| {
-                                        ctx.request_repaint();
-                                        println!("移动进度: {:.2}%", p * 100.0);
-                                    };
-                            
-                                    if let Err(err) = move_module::move_folder(&folder_path, &target_path, &progress) {
-                                        eprintln!("移动文件夹失败: {}", err);
-                                        logger::log_error(&format!("移动文件夹失败: {}", err));
-                                        return;
+                                if let Some(base_path) = utils::get_appdata_dir(&self.selected_appdata_folder) {
+                                    let full_path = base_path.join(folder);
+                                    match move_module::move_folder(ctx, &full_path, &self.selected_appdata_folder) {
+                                        Ok(_) => logger::log_info(&format!("成功移动文件夹: {}", folder)),
+                                        Err(err) => logger::log_error(&format!("移动失败: {}", err)),
                                     }
-                            
-                                    if let Err(err) = move_module::verify_and_create_symlink(&folder_path, &target_path) {
-                                        eprintln!("符号链接创建失败: {}", err);
-                                        logger::log_error(&format!("符号链接创建失败: {}", err));
-                                        return;
-                                    }
-                            
-                                    logger::log_info(&format!("文件夹 {} 成功移动至 {}", folder, target_path.display()));
-                                });
+                                }
                             }
                             if ui.button("忽略").clicked() {
                                 self.ignored_folders.insert(folder.clone());
