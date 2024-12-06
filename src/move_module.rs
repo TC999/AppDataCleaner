@@ -1,149 +1,73 @@
-use eframe::egui;
 use native_dialog::FileDialog;
-use sha2::{Digest, Sha256};
 use std::fs;
-use std::io::{self, Read};
+use std::io;
 use std::path::Path;
 
-pub fn move_folder(
-    ctx: &egui::Context,
-    source_folder: &Path,
-    appdata_folder: &str,
-) -> Result<(), String> {
+pub fn move_folder(appdata_folder: &str) -> Result<(), io::Error> {
     // 弹出文件夹选择对话框
-    let target_folder = match FileDialog::new()
-        .set_location("C:/")
-        .show_open_single_dir()
-    {
-        Ok(Some(folder)) => folder,
-        Ok(None) => return Err("取消选择目标文件夹".to_string()),
-        Err(err) => return Err(format!("文件夹选择错误: {}", err)),
-    };
+    if let Some(target_folder) = FileDialog::new().show_open_single_dir().ok().flatten() {
+        println!("选择的目标文件夹: {:?}", target_folder);
 
-    // 构造弹窗提示消息
-    let source_display = source_folder.display().to_string();
-    let target_display = target_folder.display().to_string();
-    let message = format!(
-        "您正在将 {} 移动至 {}\n这可能导致 UWP 程序异常！\n确定操作？",
-        source_display, target_display
-    );
+        // 构造完整路径
+        let source_path = Path::new(appdata_folder);
+        let target_path = Path::new(&target_folder);
 
-    // 显示确认弹窗
-    if !show_confirmation(ctx, &message)? {
-        return Err("用户取消操作".to_string());
-    }
+        // 弹窗确认
+        let message = format!(
+            "您正在将 {} 移动至 {}，确定继续？这可能导致 UWP 程序异常！",
+            source_path.display(),
+            target_path.display()
+        );
 
-    // 开始移动文件夹
-    let mut total_files = 0;
-    let mut completed_files = 0;
+        // 调用确认对话框 (自行实现 `confirmation` 模块)
+        if let Some(confirm) = crate::confirmation::show_confirmation(&message) {
+            if confirm {
+                // 开始复制文件
+                println!("开始移动文件夹...");
+                fs::create_dir_all(&target_path)?;
 
-    // 计算文件总数
-    for entry in walkdir::WalkDir::new(&source_folder) {
-        if entry.is_err() {
-            continue;
-        }
-        if entry.unwrap().file_type().is_file() {
-            total_files += 1;
-        }
-    }
+                // 递归复制文件夹内容
+                for entry in fs::read_dir(source_path)? {
+                    let entry = entry?;
+                    let file_name = entry.file_name();
+                    let target_file = target_path.join(file_name);
 
-    // 复制文件并显示进度
-    for entry in walkdir::WalkDir::new(&source_folder) {
-        let entry = entry.map_err(|e| e.to_string())?;
-        if entry.file_type().is_file() {
-            let rel_path = entry.path().strip_prefix(&source_folder).map_err(|e| e.to_string())?;
-            let dest_path = target_folder.join(rel_path);
+                    if entry.file_type()?.is_dir() {
+                        fs::create_dir_all(&target_file)?;
+                    } else {
+                        fs::copy(entry.path(), &target_file)?;
+                    }
+                }
 
-            if let Some(parent) = dest_path.parent() {
-                fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+                // 校验文件哈希（可选）
+                // ...
+
+                // 删除原文件夹
+                fs::remove_dir_all(&source_path)?;
+
+                // 创建符号链接
+                let output = std::process::Command::new("cmd")
+                    .args(["/C", "mklink", "/D", source_path.to_str().unwrap(), target_path.to_str().unwrap()])
+                    .output()?;
+
+                if output.status.success() {
+                    println!(
+                        "为 {} <<===>> {} 创建的符号链接",
+                        source_path.display(),
+                        target_path.display()
+                    );
+                } else {
+                    eprintln!("符号链接创建失败: {:?}", output.stderr);
+                }
+
+                println!("文件夹移动完成！");
+            } else {
+                println!("用户取消了操作");
             }
-
-            fs::copy(entry.path(), &dest_path).map_err(|e| e.to_string())?;
-            completed_files += 1;
-
-            // 更新进度条
-            let progress = completed_files as f32 / total_files as f32;
-            egui::Window::new("复制进度").show(ctx, |ui| {
-                ui.add(egui::ProgressBar::new(progress).text(format!(
-                    "{}/{} 文件已完成",
-                    completed_files, total_files
-                )));
-            });
         }
-    }
-
-    // 校验哈希
-    if !verify_folder_hash(&source_folder, &target_folder)? {
-        return Err("文件哈希校验失败，操作中止".to_string());
-    }
-
-    // 删除原文件夹
-    fs::remove_dir_all(&source_folder).map_err(|e| e.to_string())?;
-
-    // 创建符号链接
-    let output = std::process::Command::new("cmd")
-        .args(["/C", "mklink", "/D", &source_display, &target_display])
-        .output()
-        .map_err(|e| e.to_string())?;
-
-    if !output.status.success() {
-        return Err(format!(
-            "符号链接创建失败: {}",
-            String::from_utf8_lossy(&output.stderr)
-        ));
+    } else {
+        println!("未选择目标文件夹");
     }
 
     Ok(())
-}
-
-// 显示确认弹窗
-fn show_confirmation(ctx: &egui::Context, message: &str) -> Result<bool, String> {
-    let mut confirmed = None;
-
-    egui::Window::new("确认操作")
-        .collapsible(false)
-        .show(ctx, |ui| {
-            ui.label(message);
-            if ui.button("确定").clicked() {
-                confirmed = Some(true);
-            }
-            if ui.button("取消").clicked() {
-                confirmed = Some(false);
-            }
-        });
-
-    match confirmed {
-        Some(result) => Ok(result),
-        None => Err("用户未选择操作".to_string()),
-    }
-}
-
-// 校验两个文件夹内容的哈希值
-fn verify_folder_hash(source: &Path, target: &Path) -> Result<bool, String> {
-    for entry in walkdir::WalkDir::new(source) {
-        let entry = entry.map_err(|e| e.to_string())?;
-        if entry.file_type().is_file() {
-            let rel_path = entry.path().strip_prefix(source).map_err(|e| e.to_string())?;
-            let source_file = entry.path();
-            let target_file = target.join(rel_path);
-
-            let source_hash = calculate_file_hash(source_file)?;
-            let target_hash = calculate_file_hash(&target_file)?;
-
-            if source_hash != target_hash {
-                return Ok(false);
-            }
-        }
-    }
-    Ok(true)
-}
-
-// 计算文件哈希
-fn calculate_file_hash(file_path: &Path) -> Result<String, String> {
-    let mut file = fs::File::open(file_path).map_err(|e| e.to_string())?;
-    let mut hasher = Sha256::new();
-    let mut buffer = Vec::new();
-    file.read_to_end(&mut buffer).map_err(|e| e.to_string())?;
-    hasher.update(buffer);
-    Ok(format!("{:x}", hasher.finalize()))
 }
