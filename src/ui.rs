@@ -10,6 +10,7 @@ use crate::open;
 use eframe::egui::{self, Grid, ScrollArea};
 use std::sync::mpsc::{Sender, Receiver};
 use std::collections::HashSet;
+use std::path::PathBuf; // 确保引入 PathBuf
 
 pub struct AppDataCleaner { // 定义数据类型
     is_scanning: bool,
@@ -24,6 +25,7 @@ pub struct AppDataCleaner { // 定义数据类型
     //current_folder_type: String, // 新增字段
     previous_logging_state: bool, // 记录上一次日志启用状态
     ignored_folders: HashSet<String>,  // 忽略文件夹集合
+    move_state: Option<MoveState>,
 }
 
 impl Default for AppDataCleaner { // 定义变量默认值
@@ -41,6 +43,7 @@ impl Default for AppDataCleaner { // 定义变量默认值
             is_logging_enabled: false,  // 默认禁用日志
             previous_logging_state: false, // 初始时假定日志系统未启用
             ignored_folders: ignore::load_ignored_folders(),
+            move_state: None,
         }
     }
 }
@@ -66,6 +69,42 @@ impl AppDataCleaner {
 
         ctx.set_fonts(fonts);
     }
+    fn handle_move_operation(&mut self, ctx: &egui::Context, folder: &String) {
+        if let Some(base_path) = utils::get_appdata_dir(&self.selected_appdata_folder) {
+            let full_path = base_path.join(folder);
+            self.move_state = Some(MoveState::Initiate {
+                source: full_path.clone(),
+                folder: folder.clone(),
+            });
+            logger::log_info(&format!("准备移动文件夹: {}", folder));
+        }
+    }
+}
+
+enum MoveState {
+    Initiate {
+        source: PathBuf,
+        folder: String,
+    },
+    Confirm {
+        source: PathBuf,
+        target: PathBuf,
+        folder: String,
+    },
+    Moving {
+        source: PathBuf,
+        target: PathBuf,
+        folder: String,
+        progress: f32,
+    },
+    Completed {
+        source: PathBuf,
+        target: PathBuf,
+        folder: String,
+    },
+    Error {
+        message: String,
+    },
 }
 
 impl eframe::App for AppDataCleaner {
@@ -100,6 +139,121 @@ impl eframe::App for AppDataCleaner {
                     }
                 }
                 self.confirm_delete = None; // 清除状态
+            }
+        }
+
+        // 处理移动状态
+        if let Some(move_state) = &mut self.move_state {
+            match move_state {
+                MoveState::Initiate { source, folder } => {
+                    // 弹出文件夹选择对话框
+                    if let Some(target_folder) = FileDialog::new()
+                        .set_location("C:/")
+                        .show_open_single_dir()
+                        .ok()
+                        .flatten()
+                    {
+                        let message = format!(
+                            "您正在将 {} 移动至 {}\n这可能导致 UWP 程序异常！\n确定操作？",
+                            source.display(),
+                            target_folder.display()
+                        );
+
+                        // 设置状态为确认
+                        self.move_state = Some(MoveState::Confirm {
+                            source: source.clone(),
+                            target: target_folder.clone(),
+                            folder: folder.clone(),
+                        });
+                    } else {
+                        // 用户取消选择
+                        self.move_state = None;
+                        logger::log_info("用户取消了移动操作");
+                    }
+                }
+                MoveState::Confirm { source, target, folder } => {
+                    // 显示确认弹窗
+                    egui::Window::new("确认移动")
+                        .collapsible(false)
+                        .resizable(false)
+                        .show(ctx, |ui| {
+                            ui.label(format!(
+                                "您正在将 {} 移动至 {}\n这可能导致 UWP 程序异常！\n确定操作？",
+                                source.display(),
+                                target.display()
+                            ));
+                            ui.horizontal(|ui| {
+                                if ui.button("确定").clicked() {
+                                    // 开始移动
+                                    self.move_state = Some(MoveState::Moving {
+                                        source: source.clone(),
+                                        target: target.clone(),
+                                        folder: folder.clone(),
+                                        progress: 0.0,
+                                    });
+                                }
+                                if ui.button("取消").clicked() {
+                                    self.move_state = None;
+                                    logger::log_info("用户取消了移动操作");
+                                }
+                            });
+                        });
+                }
+                MoveState::Moving { source, target, folder, progress } => {
+                    // 执行移动操作（应在后台线程中执行）
+                    ui.ctx().request_repaint(); // 请求重绘以显示进度
+
+                    // 此处仅作为示例，实际应使用多线程处理并更新进度
+                    // 假设移动操作完成
+                    *progress = 1.0;
+                    self.move_state = Some(MoveState::Completed {
+                        source: source.clone(),
+                        target: target.clone(),
+                        folder: folder.clone(),
+                    });
+
+                    // 删除原文件夹并创建符号链接
+                    match move_module::move_folder(ctx, &source, &self.selected_appdata_folder) {
+                        Ok(_) => {
+                            logger::log_info(&format!("成功移动文件夹: {}", folder));
+                            self.move_state = Some(MoveState::Completed {
+                                source: source.clone(),
+                                target: target.clone(),
+                                folder: folder.clone(),
+                            });
+                        }
+                        Err(err) => {
+                            logger::log_error(&format!("移动失败: {}", err));
+                            self.move_state = Some(MoveState::Error { message: err });
+                        }
+                    }
+                }
+                MoveState::Completed { source, target, folder } => {
+                    egui::Window::new("移动完成")
+                        .collapsible(false)
+                        .resizable(false)
+                        .show(ctx, |ui| {
+                            ui.label(format!(
+                                "为 {} <<===>> {} 创建的符号链接",
+                                source.display(),
+                                target.display()
+                            ));
+                            if ui.button("确定").clicked() {
+                                self.move_state = None;
+                            }
+                        });
+                }
+                MoveState::Error { message } => {
+                    egui::Window::new("移动错误")
+                        .collapsible(false)
+                        .resizable(false)
+                        .show(ctx, |ui| {
+                            ui.label(format!("移动过程中发生错误: {}", message));
+                            if ui.button("确定").clicked() {
+                                self.move_state = None;
+                            }
+                        });
+                }
             }
         }
 
@@ -184,13 +338,7 @@ impl eframe::App for AppDataCleaner {
                                 self.confirm_delete = Some((folder.clone(), false));
                             }
                             if ui.button("移动").clicked() {
-                                if let Some(base_path) = utils::get_appdata_dir(&self.selected_appdata_folder) {
-                                    let full_path = base_path.join(folder);
-                                    match move_module::move_folder(ctx, &full_path, &self.selected_appdata_folder) {
-                                        Ok(_) => logger::log_info(&format!("成功移动文件夹: {}", folder)),
-                                        Err(err) => logger::log_error(&format!("移动失败: {}", err)),
-                                    }
-                                }
+                                self.handle_move_operation(ctx, folder);
                             }
                             if ui.button("忽略").clicked() {
                                 self.ignored_folders.insert(folder.clone());
