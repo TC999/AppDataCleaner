@@ -11,6 +11,7 @@ use eframe::egui::{self, Grid, ScrollArea};
 use std::sync::mpsc::{Sender, Receiver};
 use std::collections::HashSet;
 use std::path::PathBuf; // 确保引入 PathBuf
+use rfd::FileDialog;
 
 pub struct AppDataCleaner { // 定义数据类型
     is_scanning: bool,
@@ -78,6 +79,8 @@ impl AppDataCleaner {
             });
             logger::log_info(&format!("准备移动文件夹: {}", folder));
         }
+        // 移动操作中调用 move_folder 并传入 ctx
+        move_module::move_folder(ctx, &source_folder, &self.selected_appdata_folder)?;
     }
 }
 
@@ -147,7 +150,7 @@ impl eframe::App for AppDataCleaner {
             match move_state {
                 MoveState::Initiate { source, folder } => {
                     // 弹出文件夹选择对话框
-                    if let Some(target_folder) = FileDialog::new()
+                    if let Some(target_folder) = FileDialog::new().pick_folder()
                         .set_location("C:/")
                         .show_open_single_dir()
                         .ok()
@@ -200,6 +203,10 @@ impl eframe::App for AppDataCleaner {
                         });
                 }
                 MoveState::Moving { source, target, folder, progress } => {
+                    // 使用文件选择器
+                    if let Some(target_folder) = FileDialog::new().pick_folder() {
+                        println!("Selected folder: {:?}", target_folder);
+                    }
                     // 执行移动操作（应在后台线程中执行）
                     ui.ctx().request_repaint(); // 请求重绘以显示进度
 

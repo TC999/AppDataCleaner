@@ -1,5 +1,5 @@
 use eframe::egui;
-use native_dialog::FileDialog;
+use rfd::FileDialog;
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::io::Read;
@@ -12,9 +12,9 @@ pub fn move_folder(
     appdata_folder: &str,
 ) -> Result<(), String> {
     // 弹出文件夹选择对话框
-    let target_folder = match FileDialog::new()
-        .set_location("C:/")
-        .show_open_single_dir()
+    let target_folder = match FileDialog::new().pick_folder()
+        .set_directory("C:/") // 设置初始路径
+        .pick_folder()
     {
         Ok(Some(folder)) => folder,
         Ok(None) => return Err("取消选择目标文件夹".to_string()),
