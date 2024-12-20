@@ -17,8 +17,8 @@ header nav a {
 }
 
 header nav a.github-link svg {
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 2rem;
+  height: 2rem;
   fill: #ffffff;
   stroke: #ffffff; /* GitHub 图标颜色固定为白色 */
   transition: stroke 0.3s;
@@ -49,6 +49,29 @@ body {
   padding: 0;
   background: var(--background);
   color: var(--text-color);
+}
+
+.container {
+  display: flex;
+  gap: 2rem; /* 内容与图片之间的间距 */
+}
+
+.content {
+  flex: 2; /* 左侧内容占较大部分 */
+}
+
+.image {
+  flex: 1; /* 右侧图片占较小部分 */
+  display: flex;
+  align-items: center; /* 垂直居中 */
+  justify-content: center; /* 水平居中 */
+}
+
+.image img {
+  max-width: 100%; /* 确保图片自适应容器 */
+  height: auto; /* 保持图片比例 */
+  border-radius: 8px; /* 为图片添加圆角 */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* 添加阴影效果 */
 }
 
 footer {

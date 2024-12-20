@@ -4,43 +4,37 @@ title: AppData 清理器 - 辅助清理 AppData 文件夹
 ---
 
 <div class="container">
-  <h1>{{ page.title }}</h1>
-  <p>清理 AppData 的<strong>辅助</strong>工具</p>
+  <div class="content">
+    <h1>{{ page.title }}</h1>
+    <p>清理 AppData 的<strong>辅助</strong>工具</p>
 
-  <details>
-    <summary><h2>开发原因</h2></summary>
-    <p>Windows系统安装的软件卸载时，即使使用专业卸载工具卸载后，appdata 中的文件仍旧不会删除，故开发此软件清理。</p>
-    <p>本工具使用 Rust 编写，使用 ChatGPT 生成，并使用 egui 构建 GUI。</p>
-    <p>本工具完全开源免费，欢迎各位大佬贡献代码。</p>
-  </details>
+    <details>
+      <summary><h2>开发原因</h2></summary>
+      <p>Windows系统安装的软件卸载时，即使使用专业卸载工具卸载后，appdata 中的文件仍旧不会删除，故开发此软件清理。</p>
+      <p>本工具使用 Rust 编写，使用 ChatGPT 生成，并使用 egui 构建 GUI。</p>
+      <p>本工具完全开源免费，欢迎各位大佬贡献代码。</p>
+    </details>
 
-  <h2>功能特点</h2>
-  <ul>
-    <li>文件夹右侧会提示这个文件夹的作用（需自行下载规则，这是<a href="https://github.com/TC999/TC999-subscription">作者本人维护的规则</a>）</li>
-    <li>友好的用户界面</li>
-    <!--li>跨平台支持</li-->
-  </ul>
+    <h2>功能特点</h2>
+    <ul>
+      <li>文件夹右侧会提示这个文件夹的作用（需自行下载规则，这是<a href="https://github.com/TC999/TC999-subscription">作者本人维护的规则</a>）</li>
+      <li>友好的用户界面</li>
+      <!--li>跨平台支持</li-->
+    </ul>
 
-  <h2><strong>下载地址</strong></h2>
-  <p>访问 <a href="https://github.com/TC999/AppDataCleaner/releases/latest">GitHub 发行版</a>下载最新版本。</p>
+    <h2><strong>下载地址</strong></h2>
+    <p>访问 <a href="https://github.com/TC999/AppDataCleaner/releases/latest">GitHub 发行版</a>下载最新版本。</p>
 
-  <!--h2>切换主题</h2>
-  <p>
-    <button id="theme-toggle">切换主题</button>
-  </p-->
-  <h2>许可证</h2>
-  <p>本软件使用 GPL-3 许可证。</p>
+    <h2>许可证</h2>
+    <p>本软件使用 GPL-3 许可证。</p>
+
+    <h2>鸣谢</h2>
+    <p><a href="https://github.com/TC999">TC999</a> - 项目作者</p>
+    <p><a href="https://chatgpt.com">ChatGPT</a> - 代码编写</p>
+    <p><a href="https://github.com/emilk/egui">egui</a> - GUI 框架</p>
+  </div>
+
+  <div class="image">
+    <img src="assets/images/index.png" alt="AppData 清理器示例图片" />
+  </div>
 </div>
-
-<!--script>
-  // 获取当前主题
-  const currentTheme = localStorage.getItem("theme") || "light";
-  document.documentElement.setAttribute("data-theme", currentTheme);
-
-  // 主题切换功能
-  document.getElementById("theme-toggle").addEventListener("click", () => {
-    const theme = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("theme", theme);
-  });
-</script-->
