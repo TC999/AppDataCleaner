@@ -51,9 +51,14 @@ body {
   color: var(--text-color);
 }
 
+/* 页面整体居中和边距设置 */
 .container {
   display: flex;
   gap: 2rem; /* 内容与图片之间的间距 */
+  max-width: 1200px; /* 限制页面最大宽度 */
+  margin: 0 auto; /* 水平居中 */
+  padding: 2rem; /* 四周内边距 */
+  box-sizing: border-box;
 }
 
 .content {
