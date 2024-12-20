@@ -80,6 +80,7 @@ body {
 }
 
 footer {
+  display: flex;
   text-align: center;
   padding: 1rem;
   background: var(--footer-bg);
