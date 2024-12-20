@@ -45,8 +45,8 @@ header nav .theme-toggle-btn:hover {
 body {
   font-family: Arial, sans-serif;
   line-height: 1.6;
-  margin: 2rem;
-  padding: 2rem;
+  margin: 0;
+  padding: 0;
   background: var(--background);
   color: var(--text-color);
 }
