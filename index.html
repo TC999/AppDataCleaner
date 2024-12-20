@@ -1,81 +1,37 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>软件介绍</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #333;
-            color: #fff;
-            margin: 0;
-            padding: 20px;
-        }
-        .container {
-            max-width: 800px;
-            margin: auto;
-        }
-        h1, h2, h3 {
-            color: #ffd700; /* 金色用于标题 */
-        }
-        p {
-            line-height: 1.6;
-        }
-        .theme-toggle {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            cursor: pointer;
-            background-color: #444;
-            color: #fff;
-            padding: 10px;
-            border: none;
-            border-radius: 5px;
-        }
-    </style>
-</head>
-<body>
-    <button class="theme-toggle" onclick="toggleTheme()">切换主题</button>
-    <div class="container">
-        <h1>软件介绍</h1>
-        <p>这里是软件的介绍文本。软件名称、功能、特点等都可以在这里详细描述。</p>
-        
-        <h2>功能特点</h2>
-        <ul>
-            <li>功能一：详细描述</li>
-            <li>功能二：详细描述</li>
-            <li>功能三：详细描述</li>
-        </ul>
-        
-        <h2>使用说明</h2>
-        <p>这里是软件的使用说明。可以包括安装步骤、操作流程等。</p>
-        
-        <h2>下载链接</h2>
-        <p><a href="#" style="color: #87CEEB;">点击这里下载软件</a></p>
-    </div>
+---
+layout: default
+title: 软件介绍
+---
 
-    <script>
-        function toggleTheme() {
-            var body = document.body;
-            if (body.style.backgroundColor === '#333') {
-                body.style.backgroundColor = '#fff';
-                body.style.color = '#333';
-                document.querySelectorAll('h1, h2, h3').forEach(function (header) {
-                    header.style.color = '#000';
-                });
-                document.querySelector('.theme-toggle').style.backgroundColor = '#fff';
-                document.querySelector('.theme-toggle').style.color = '#000';
-            } else {
-                body.style.backgroundColor = '#333';
-                body.style.color = '#fff';
-                document.querySelectorAll('h1, h2, h3').forEach(function (header) {
-                    header.style.color = '#ffd700';
-                });
-                document.querySelector('.theme-toggle').style.backgroundColor = '#444';
-                document.querySelector('.theme-toggle').style.color = '#fff';
-            }
-        }
-    </script>
-</body>
-</html>
+<div class="container">
+  <h1>{{ page.title }}</h1>
+  <p>欢迎来到我们的软件介绍页面！</p>
+
+  <h2>功能特点</h2>
+  <ul>
+    <li>高效的数据处理</li>
+    <li>友好的用户界面</li>
+    <li>跨平台支持</li>
+  </ul>
+
+  <h2>下载地址</h2>
+  <p>访问我们的 <a href="https://github.com/your-repo">GitHub 项目</a> 下载最新版本。</p>
+
+  <h2>切换主题</h2>
+  <p>
+    <button id="theme-toggle">切换主题</button>
+  </p>
+</div>
+
+<script>
+  // 获取当前主题
+  const currentTheme = localStorage.getItem("theme") || "light";
+  document.documentElement.setAttribute("data-theme", currentTheme);
+
+  // 主题切换功能
+  document.getElementById("theme-toggle").addEventListener("click", () => {
+    const theme = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("theme", theme);
+  });
+</script>
