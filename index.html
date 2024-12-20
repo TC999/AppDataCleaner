@@ -7,6 +7,13 @@ title: AppData 清理器 - 辅助清理 AppData 文件夹
   <h1>{{ page.title }}</h1>
   <p>清理 AppData 的<strong>辅助</strong>工具</p>
 
+  <details>
+    <summary><h2>开发原因</h2></summary>
+    <p>Windows系统安装的软件卸载时，即使使用专业卸载工具卸载后，appdata 中的文件仍旧不会删除，故开发此软件清理。</p>
+    <p>本工具使用 Rust 编写，使用 ChatGPT 生成，并使用 egui 构建 GUI。</p>
+    <p>本工具完全开源免费，欢迎各位大佬贡献代码。</p>
+  </details>
+
   <h2>功能特点</h2>
   <ul>
     <li>文件夹右侧会提示这个文件夹的作用（需自行下载规则，这是<a href="https://github.com/TC999/TC999-subscription">作者本人维护的规则</a>）</li>
