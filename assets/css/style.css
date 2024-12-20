@@ -86,7 +86,7 @@ footer {
   color: var(--footer-text);
 }
 
-footer p.github-link svg {
+footer a.github-link svg {
   width: 1rem;
   height: 1rem;
   fill: #ffffff;
@@ -94,7 +94,7 @@ footer p.github-link svg {
   transition: stroke 0.3s;
 }
 
-footer p.github-link:hover svg {
+footer a.github-link:hover svg {
   stroke: #cccccc; /* 悬停时变浅 */
 }
 
