@@ -17,8 +17,8 @@ header nav a {
 }
 
 header nav a.github-link svg {
-  width: 2rem;
-  height: 2rem;
+  width: 1.5rem;
+  height: 1.5rem;
   fill: #ffffff;
   stroke: #ffffff; /* GitHub 图标颜色固定为白色 */
   transition: stroke 0.3s;
@@ -45,8 +45,8 @@ header nav .theme-toggle-btn:hover {
 body {
   font-family: Arial, sans-serif;
   line-height: 1.6;
-  margin: 0;
-  padding: 0;
+  margin: 2rem;
+  padding: 2rem;
   background: var(--background);
   color: var(--text-color);
 }
