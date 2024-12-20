@@ -19,7 +19,7 @@ header nav a {
 header nav a.github-link svg {
   width: 1.5rem;
   height: 1.5rem;
-  fill: none;
+  fill: #ffffff;
   stroke: #ffffff; /* GitHub 图标颜色固定为白色 */
   transition: stroke 0.3s;
 }
