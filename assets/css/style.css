@@ -1,51 +1,67 @@
 /* 通用样式 */
 body {
-    font-family: Arial, sans-serif;
-    line-height: 1.6;
-    margin: 0;
-    padding: 0;
-  }
-  
-  header {
-    background: var(--header-bg);
-    padding: 1rem;
-  }
-  
-  header nav a {
-    color: var(--header-text);
-    margin-right: 1rem;
-    text-decoration: none;
-  }
-  
-  footer {
-    text-align: center;
-    padding: 1rem;
-    background: var(--footer-bg);
-    color: var(--footer-text);
-  }
-  
-  /* 主题变量 */
-  :root {
-    --header-bg: #f4f4f4;
-    --header-text: #333;
-    --footer-bg: #ddd;
-    --footer-text: #000;
-    --background: #fff;
-    --text-color: #000;
-  }
-  
-  [data-theme="dark"] {
-    --header-bg: #333;
-    --header-text: #fff;
-    --footer-bg: #444;
-    --footer-text: #fff;
-    --background: #000;
-    --text-color: #fff;
-  }
-  
-  /* 应用主题 */
-  body {
-    background: var(--background);
-    color: var(--text-color);
-  }
-  
+  font-family: Arial, sans-serif;
+  line-height: 1.6;
+  margin: 0;
+  padding: 0;
+}
+
+header {
+  background: var(--header-bg);
+  padding: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+header nav a {
+  color: var(--header-text);
+  margin-right: 1rem;
+  text-decoration: none;
+}
+
+header nav .theme-toggle-btn {
+  background: var(--header-text);
+  color: var(--header-bg);
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+header nav .theme-toggle-btn:hover {
+  opacity: 0.8;
+}
+
+footer {
+  text-align: center;
+  padding: 1rem;
+  background: var(--footer-bg);
+  color: var(--footer-text);
+}
+
+/* 主题变量 */
+:root {
+  --header-bg: #f4f4f4;
+  --header-text: #333;
+  --footer-bg: #ddd;
+  --footer-text: #000;
+  --background: #fff;
+  --text-color: #000;
+}
+
+[data-theme="dark"] {
+  --header-bg: #333;
+  --header-text: #fff;
+  --footer-bg: #444;
+  --footer-text: #fff;
+  --background: #000;
+  --text-color: #fff;
+}
+
+/* 应用主题 */
+body {
+  background: var(--background);
+  color: var(--text-color);
+}

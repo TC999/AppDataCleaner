@@ -12,6 +12,8 @@
       <a href="{{ '/' | relative_url }}">首页</a>
       <a href="#features">功能</a>
       <a href="#download">下载</a>
+      <!-- 添加切换主题按钮 -->
+      <button id="theme-toggle" class="theme-toggle-btn">切换主题</button>
     </nav>
   </header>
 
@@ -22,5 +24,18 @@
   <footer>
     <p>© 2024 软件团队</p>
   </footer>
+
+  <script>
+    // 获取当前主题
+    const currentTheme = localStorage.getItem("theme") || "light";
+    document.documentElement.setAttribute("data-theme", currentTheme);
+
+    // 主题切换功能
+    document.getElementById("theme-toggle").addEventListener("click", () => {
+      const theme = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+      document.documentElement.setAttribute("data-theme", theme);
+      localStorage.setItem("theme", theme);
+    });
+  </script>
 </body>
 </html>
