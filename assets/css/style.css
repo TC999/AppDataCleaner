@@ -86,6 +86,18 @@ footer {
   color: var(--footer-text);
 }
 
+footer a.github-link svg {
+  width: 1rem;
+  height: 1rem;
+  fill: #ffffff;
+  stroke: #ffffff; /* GitHub 图标颜色固定为白色 */
+  transition: stroke 0.3s;
+}
+
+footer a.github-link:hover svg {
+  stroke: #cccccc; /* 悬停时变浅 */
+}
+
 /* 主题变量 */
 :root {
   --footer-bg: #ddd;
