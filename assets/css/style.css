@@ -14,11 +14,28 @@ header {
   align-items: center;
 }
 
+/* 通用样式 */
 header nav a {
   color: var(--header-text);
   margin-right: 1rem;
   text-decoration: none;
+  font-size: 1rem;
+  display: inline-flex;
+  align-items: center;
 }
+
+header nav a.github-link svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  fill: none;
+  stroke: var(--header-text);
+  transition: stroke 0.3s;
+}
+
+header nav a.github-link:hover svg {
+  stroke: var(--footer-text); /* 鼠标悬停效果 */
+}
+
 
 header nav .theme-toggle-btn {
   background: var(--header-text);
