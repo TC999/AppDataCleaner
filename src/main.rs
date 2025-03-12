@@ -12,11 +12,22 @@ mod yaml_loader; // 文件描述
 pub mod ai_config;  // 使用 pub 使其可以被其他模块访问
 pub mod tabs;  // 添加tabs模块，使其可以被其他模块访问
 
+use eframe::egui::IconData;
+use std::sync::Arc;
+use image;
 use ui::AppDataCleaner;
 
 fn main() -> Result<(), eframe::Error> {
     // 初始化日志
     logger::init_logger(true); // true 表示日志记录到文件，false 表示只输出到控制台
+
+    let mut native_options = eframe::NativeOptions::default();
+    let icon_data = include_bytes!("../assets/icon.png");
+    let img = image::load_from_memory_with_format(icon_data, image::ImageFormat::Png).unwrap();
+    let rgba_data = img.into_rgba8();
+    let (w,h)=(rgba_data.width(),rgba_data.height());
+    let raw_data: Vec<u8> = rgba_data.into_raw();
+    native_options.viewport.icon=Some(Arc::<IconData>::new(IconData { rgba:  raw_data, width: w, height: h }));
 
     let options = eframe::NativeOptions::default();
     eframe::run_native(
