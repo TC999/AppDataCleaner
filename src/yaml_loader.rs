@@ -34,6 +34,26 @@ impl FolderDescriptions {
             _ => None,
         }
     }
+
+    pub fn update_description(&mut self, folder_name: &str, folder_type: &str, description: String) -> Result<(), String> {
+        match folder_type {
+            "Roaming" => { self.Roaming.insert(folder_name.to_string(), description); }
+            "Local" => { self.Local.insert(folder_name.to_string(), description); }
+            "LocalLow" => { self.LocalLow.insert(folder_name.to_string(), description); }
+            _ => return Err("无效的文件夹类型".to_string()),
+        }
+        Ok(())
+    }
+
+    pub fn save_to_yaml(&self, file_path: &str) -> Result<(), String> {
+        let yaml_string = serde_yaml::to_string(self)
+            .map_err(|e| format!("序列化 YAML 失败: {}", e))?;
+
+        fs::write(file_path, yaml_string)
+            .map_err(|e| format!("写入 YAML 文件失败: {}", e))?;
+
+        Ok(())
+    }
 }
 
 // 新增函数，用于加载文件夹描述
@@ -48,5 +68,14 @@ pub fn load_folder_descriptions(file_path: &str, yaml_error_logged: &mut bool) -
             }
             None
         }
+    }
+}
+
+// 创建默认的描述文件
+pub fn create_default_descriptions() -> FolderDescriptions {
+    FolderDescriptions {
+        Roaming: HashMap::new(),
+        Local: HashMap::new(),
+        LocalLow: HashMap::new(),
     }
 }

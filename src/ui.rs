@@ -1,15 +1,15 @@
-use crate::logger;
 use crate::ai_config::{AIConfig, AIHandler};
-use eframe::egui;
-use std::sync::{Arc, Mutex};
-use std::sync::mpsc::Receiver;
+use crate::logger;
 use crate::tabs::about_tab;
 use crate::tabs::ai_ui_tab::AIConfigurationUI;
 use crate::tabs::clear_tab::ClearTabState;
+use eframe::egui;
+use std::sync::mpsc::Receiver;
+use std::sync::{Arc, Mutex};
 
 pub struct AppDataCleaner {
     // 标签页状态
-    current_tab: String,             // 当前选中的标签页
+    current_tab: String, // 当前选中的标签页
     show_about_window: bool,
 
     // 日志相关字段
@@ -26,8 +26,8 @@ pub struct AppDataCleaner {
 
 impl Default for AppDataCleaner {
     fn default() -> Self {
-        let (ai_tx, ai_rx) = std::sync::mpsc::channel();  // 创建 AI 通信通道
-        
+        let (ai_tx, ai_rx) = std::sync::mpsc::channel(); // 创建 AI 通信通道
+
         // 加载AI配置
         let ai_config = match AIConfig::load_from_file("folders_description.yaml") {
             Ok(config) => {
@@ -43,14 +43,14 @@ impl Default for AppDataCleaner {
         // 创建 AIHandler 并包装在 Arc<Mutex<>> 中
         let ai_handler = Arc::new(Mutex::new(AIHandler::new(
             ai_config.clone(),
-            Some(ai_tx.clone())
+            Some(ai_tx.clone()),
         )));
 
         let ai_ui = AIConfigurationUI::new(ai_config.clone(), ai_handler.clone());
 
         // 创建清理标签页状态
         let mut clear_tab = ClearTabState::default();
-        
+
         // 设置回调函数 - 使用 String 而不是引用
         {
             let ai_handler_clone = ai_handler.clone();
@@ -59,12 +59,18 @@ impl Default for AppDataCleaner {
                 // 这里使用了副本，不再引用原始对象
                 let selected_folder_clone = "Roaming".to_string(); // 默认值，将在实际使用时更新
                 let handler = ai_handler_clone.clone();
-                
+
                 std::thread::spawn(move || {
                     let rt = tokio::runtime::Runtime::new().unwrap();
                     rt.block_on(async {
                         if let Ok(mut handler) = handler.lock() {
-                            if let Err(e) = handler.generate_single_description(folder_name.clone(), selected_folder_clone).await {
+                            if let Err(e) = handler
+                                .generate_single_description(
+                                    folder_name.clone(),
+                                    selected_folder_clone,
+                                )
+                                .await
+                            {
                                 logger::log_error(&format!("生成描述失败: {}", e));
                             }
                         }
@@ -76,39 +82,44 @@ impl Default for AppDataCleaner {
         // 设置批量生成描述回调 - 不再从clear_tab捕获变量
         {
             let ai_handler_clone = ai_handler.clone();
-            clear_tab.set_generate_all_descriptions_callback(move |folder_data, selected_folder| {
-                let folder_data = folder_data.clone();
-                let selected_folder = selected_folder.to_string();
-                let handler = ai_handler_clone.clone();
-                
-                std::thread::spawn(move || {
-                    let rt = tokio::runtime::Runtime::new().unwrap();
-                    rt.block_on(async {
-                        if let Ok(mut handler) = handler.lock() {
-                            if let Err(e) = handler.generate_all_descriptions(folder_data.clone(), selected_folder).await {
-                                logger::log_error(&format!("批量生成描述失败: {}", e));
+            clear_tab.set_generate_all_descriptions_callback(
+                move |folder_data, selected_folder| {
+                    let folder_data = folder_data.clone();
+                    let selected_folder = selected_folder.to_string();
+                    let handler = ai_handler_clone.clone();
+
+                    std::thread::spawn(move || {
+                        let rt = tokio::runtime::Runtime::new().unwrap();
+                        rt.block_on(async {
+                            if let Ok(mut handler) = handler.lock() {
+                                if let Err(e) = handler
+                                    .generate_all_descriptions(folder_data.clone(), selected_folder)
+                                    .await
+                                {
+                                    logger::log_error(&format!("批量生成描述失败: {}", e));
+                                }
                             }
-                        }
+                        });
                     });
-                });
-            });
+                },
+            );
         }
 
         Self {
             // 界面状态初始化
             show_about_window: false,
-            current_tab: "主页".to_string(),  // 默认选中主页标签
+            current_tab: "主页".to_string(), // 默认选中主页标签
 
             // 日志相关初始化
             is_logging_enabled: false,
             previous_logging_state: false,
 
-            // 清理标签页初始化 
+            // 清理标签页初始化
             clear_tab,
 
             // AI相关初始化
             ai_ui,
-            ai_rx: Some(ai_rx),  // 保存 AI 响应接收器
+            ai_rx: Some(ai_rx), // 保存 AI 响应接收器
         }
     }
 }
@@ -137,7 +148,7 @@ impl AppDataCleaner {
 
     fn show_top_menu(&mut self, ctx: &egui::Context) {
         egui::TopBottomPanel::top("menu_bar").show(ctx, |ui| {
-            ui.horizontal(|ui| {  
+            ui.horizontal(|ui| {
                 // 左侧标签页和选项
                 ui.selectable_value(&mut self.current_tab, "主页".to_string(), "主页");
                 ui.selectable_value(&mut self.current_tab, "关于".to_string(), "关于");
@@ -151,13 +162,17 @@ impl AppDataCleaner {
                     ui.menu_button("切换文件夹", |ui| {
                         for folder in ["Roaming", "Local", "LocalLow"] {
                             if ui.button(folder).clicked() {
-                                self.clear_tab.set_selected_appdata_folder(folder.to_string());
+                                self.clear_tab
+                                    .set_selected_appdata_folder(folder.to_string());
                                 ui.close_menu();
                             }
                         }
                     });
                     // 当前目标文件夹显示
-                    ui.label(format!("当前目标: {}", self.clear_tab.selected_appdata_folder));
+                    ui.label(format!(
+                        "当前目标: {}",
+                        self.clear_tab.selected_appdata_folder
+                    ));
                 });
             });
 
@@ -165,9 +180,10 @@ impl AppDataCleaner {
         });
     }
 
+    // 修改 ui.rs 中的 update 方法
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         self.setup_custom_fonts(ctx);
-        
+
         // 处理日志开关
         if self.is_logging_enabled != self.previous_logging_state {
             logger::init_logger(self.is_logging_enabled); // 初始化日志系统
@@ -178,7 +194,7 @@ impl AppDataCleaner {
             }
             self.previous_logging_state = self.is_logging_enabled; // 更新状态
         }
-        
+
         // 处理 AI 响应，忽略不需要的变量
         if let Some(rx) = &self.ai_rx {
             while let Ok((_, folder_name, _)) = rx.try_recv() {
@@ -197,10 +213,10 @@ impl AppDataCleaner {
         // 主面板 - 根据当前标签页显示不同内容
         egui::CentralPanel::default().show(ctx, |ui| {
             match self.current_tab.as_str() {
-                "主页" => self.clear_tab.show(ui),
+                "主页" => self.clear_tab.show(ctx, ui), // 修改这里，传递ctx参数
                 "关于" => about_tab::handle_about_tab(ui),
                 "AI配置" => self.ai_ui.draw_config_ui(ui),
-                _ => self.clear_tab.show(ui),
+                _ => self.clear_tab.show(ctx, ui), // 修改这里，传递ctx参数
             }
         });
 

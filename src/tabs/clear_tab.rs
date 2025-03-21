@@ -1,5 +1,7 @@
+use crate::yaml_loader::{
+    create_default_descriptions, load_folder_descriptions, FolderDescriptions,
+};
 use crate::{confirmation, ignore, logger, move_module, open, scanner, utils};
-use crate::yaml_loader::{load_folder_descriptions, FolderDescriptions};
 use eframe::egui::{self, Grid, ScrollArea};
 use std::collections::HashSet;
 use std::sync::mpsc::{Receiver, Sender};
@@ -17,14 +19,17 @@ pub struct ClearTabState {
     pub confirm_delete: Option<(String, bool)>,
     pub status: Option<String>,
 
-    // 排序相关字段 
-    pub sort_criterion: Option<String>,  // 排序标准:"name"或"size"
-    pub sort_order: Option<String>,      // 排序顺序:"asc"或"desc"
+    // 排序相关字段
+    pub sort_criterion: Option<String>, // 排序标准:"name"或"size"
+    pub sort_order: Option<String>,     // 排序顺序:"asc"或"desc"
 
     // 文件夹描述相关
     pub folder_descriptions: Option<FolderDescriptions>,
     pub yaml_error_logged: bool,
     pub ignored_folders: HashSet<String>,
+
+    // 编辑描述相关
+    pub edit_description: Option<(String, String)>, // (文件夹名, 当前描述)
 
     // 移动模块
     pub move_module: move_module::MoveModule,
@@ -60,6 +65,9 @@ impl Default for ClearTabState {
             yaml_error_logged: false,
             ignored_folders: ignore::load_ignored_folders(),
 
+            // 编辑描述相关初始化
+            edit_description: None,
+
             // 移动模块初始化
             move_module: Default::default(),
 
@@ -93,9 +101,10 @@ impl ClearTabState {
     fn handle_folder_operations(&mut self, ui: &mut egui::Ui, folder: &str, size: u64) {
         // 显示文件夹名称和大小
         if self.ignored_folders.contains(folder) {
-            ui.add_enabled(false, egui::Label::new(
-                egui::RichText::new(folder).color(egui::Color32::GRAY),
-            ));
+            ui.add_enabled(
+                false,
+                egui::Label::new(egui::RichText::new(folder).color(egui::Color32::GRAY)),
+            );
         } else {
             ui.label(folder);
         }
@@ -103,15 +112,17 @@ impl ClearTabState {
 
         // 显示描述
         self.show_folder_description(ui, folder);
-        
+
         // 显示操作按钮
         self.show_folder_actions(ui, folder);
     }
 
     fn show_folder_description(&self, ui: &mut egui::Ui, folder: &str) {
-        let description = self.folder_descriptions.as_ref()
+        let description = self
+            .folder_descriptions
+            .as_ref()
             .and_then(|desc| desc.get_description(folder, &self.selected_appdata_folder));
-        
+
         match description {
             Some(desc) => ui.label(desc),
             None => ui.label("无描述"),
@@ -120,7 +131,7 @@ impl ClearTabState {
 
     fn show_folder_actions(&mut self, ui: &mut egui::Ui, folder: &str) {
         let is_ignored = self.ignored_folders.contains(folder);
-        
+
         if !is_ignored {
             if ui.button("彻底删除").clicked() {
                 self.confirm_delete = Some((folder.to_string(), false));
@@ -144,6 +155,19 @@ impl ClearTabState {
             });
         }
 
+        // 添加编辑描述按钮
+        if ui.button("编辑描述").clicked() {
+            // 获取当前描述，如果没有则使用空字符串
+            let current_desc = self
+                .folder_descriptions
+                .as_ref()
+                .and_then(|desc| desc.get_description(folder, &self.selected_appdata_folder))
+                .unwrap_or_default();
+
+            // 设置当前正在编辑的文件夹和描述
+            self.edit_description = Some((folder.to_string(), current_desc));
+        }
+
         if ui.button("打开").clicked() {
             if let Some(base_path) = utils::get_appdata_dir(&self.selected_appdata_folder) {
                 let full_path = base_path.join(folder);
@@ -163,6 +187,74 @@ impl ClearTabState {
             self.status = Some(format!("正在为 {} 生成描述...", folder));
             // 传递实际的文件夹名和当前选中的AppData文件夹
             callback(folder);
+        }
+    }
+
+    // 处理编辑描述的弹窗
+    fn handle_edit_description_window(&mut self, ctx: &egui::Context) {
+        if let Some((folder, ref mut description)) = self.edit_description.clone() {
+            let mut description_clone = description.clone();
+            let mut is_open = true;
+
+            egui::Window::new(format!("编辑 {} 的描述", folder))
+                .open(&mut is_open)
+                .resizable(true)
+                .default_width(400.0)
+                .show(ctx, |ui| {
+                    ui.label("描述:");
+
+                    // 添加多行文本输入框
+                    ui.text_edit_multiline(&mut description_clone);
+
+                    ui.horizontal(|ui| {
+                        if ui.button("保存").clicked() {
+                            self.save_description(&folder, description_clone.clone());
+                            self.edit_description = None;
+                        }
+
+                        if ui.button("取消").clicked() {
+                            self.edit_description = None;
+                        }
+                    });
+                });
+
+            if !is_open {
+                self.edit_description = None;
+            }
+        }
+    }
+
+    // 保存描述到YAML文件
+    fn save_description(&mut self, folder: &str, description: String) {
+        // 如果描述为空，则不进行保存
+        if description.trim().is_empty() {
+            return;
+        }
+
+        // 确保folder_descriptions已初始化
+        if self.folder_descriptions.is_none() {
+            self.folder_descriptions = Some(create_default_descriptions());
+        }
+
+        // 更新描述
+        if let Some(descriptions) = &mut self.folder_descriptions {
+            if let Err(e) =
+                descriptions.update_description(folder, &self.selected_appdata_folder, description)
+            {
+                logger::log_error(&format!("更新描述失败: {}", e));
+                self.status = Some(format!("更新描述失败: {}", e));
+                return;
+            }
+
+            // 保存到YAML文件
+            if let Err(e) = descriptions.save_to_yaml("folders_description.yaml") {
+                logger::log_error(&format!("保存描述文件失败: {}", e));
+                self.status = Some(format!("保存描述文件失败: {}", e));
+                return;
+            }
+
+            logger::log_info(&format!("已更新 {} 的描述", folder));
+            self.status = Some(format!("已更新 {} 的描述", folder));
         }
     }
 
@@ -223,7 +315,7 @@ impl ClearTabState {
 
             // 创建一个临时向量来存储需要处理的数据
             let folder_data = self.folder_data.clone();
-            
+
             // 使用临时数据进行遍历
             for (folder, size) in folder_data {
                 self.handle_folder_operations(ui, &folder, size);
@@ -232,16 +324,16 @@ impl ClearTabState {
         });
     }
 
-    pub fn show(&mut self, ui: &mut egui::Ui) {
+    pub fn show(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
         // 初始化if未加载folder descriptions
         if self.folder_descriptions.is_none() {
-            self.folder_descriptions = 
+            self.folder_descriptions =
                 load_folder_descriptions("folders_description.yaml", &mut self.yaml_error_logged);
         }
 
         // 删除确认弹窗逻辑
         confirmation::handle_delete_confirmation(
-            ui.ctx(),  // 使用当前上下文，而不是创建新的
+            ctx, // 使用当前上下文
             &mut self.confirm_delete,
             &self.selected_appdata_folder,
             &mut self.status,
@@ -260,7 +352,7 @@ impl ClearTabState {
 
                 scanner::scan_appdata(tx, &folder_type);
             }
-            
+
             // 一键生成所有描述按钮
             if ui.button("一键生成所有描述").clicked() {
                 if let Some(callback) = &self.generate_all_descriptions_callback {
@@ -290,11 +382,14 @@ impl ClearTabState {
 
         // 排序控件
         self.show_sort_controls(ui);
-        
+
         // 文件夹列表
         ScrollArea::vertical().show(ui, |ui| {
             self.show_folder_grid(ui);
         });
+
+        // 处理编辑描述的弹窗
+        self.handle_edit_description_window(ctx);
     }
 
     // 设置选中的AppData文件夹
@@ -307,7 +402,7 @@ impl ClearTabState {
 
     // 更新文件夹描述
     pub fn update_folder_descriptions(&mut self) {
-        self.folder_descriptions = 
+        self.folder_descriptions =
             load_folder_descriptions("folders_description.yaml", &mut self.yaml_error_logged);
     }
 }
