@@ -1,6 +1,5 @@
-use crate::yaml_loader::{
-    create_default_descriptions, load_folder_descriptions, FolderDescriptions,
-};
+use crate::yaml_edit::YamlEditor; // 引入新模块
+use crate::yaml_loader::{load_folder_descriptions, FolderDescriptions};
 use crate::{confirmation, ignore, logger, move_module, open, scanner, utils};
 use eframe::egui::{self, Grid, ScrollArea};
 use std::collections::HashSet;
@@ -28,8 +27,8 @@ pub struct ClearTabState {
     pub yaml_error_logged: bool,
     pub ignored_folders: HashSet<String>,
 
-    // 编辑描述相关
-    pub edit_description: Option<(String, String)>, // (文件夹名, 当前描述)
+    // YAML编辑器
+    pub yaml_editor: YamlEditor,
 
     // 移动模块
     pub move_module: move_module::MoveModule,
@@ -65,8 +64,8 @@ impl Default for ClearTabState {
             yaml_error_logged: false,
             ignored_folders: ignore::load_ignored_folders(),
 
-            // 编辑描述相关初始化
-            edit_description: None,
+            // YAML编辑器初始化
+            yaml_editor: YamlEditor::new(),
 
             // 移动模块初始化
             move_module: Default::default(),
@@ -164,8 +163,9 @@ impl ClearTabState {
                 .and_then(|desc| desc.get_description(folder, &self.selected_appdata_folder))
                 .unwrap_or_default();
 
-            // 设置当前正在编辑的文件夹和描述
-            self.edit_description = Some((folder.to_string(), current_desc));
+            // 使用YAML编辑器打开编辑窗口
+            self.yaml_editor
+                .open_description_editor(folder, &current_desc);
         }
 
         if ui.button("打开").clicked() {
@@ -187,77 +187,6 @@ impl ClearTabState {
             self.status = Some(format!("正在为 {} 生成描述...", folder));
             // 传递实际的文件夹名和当前选中的AppData文件夹
             callback(folder);
-        }
-    }
-
-    // 处理编辑描述的弹窗
-    // 替换原来的 handle_edit_description_window 方法
-    fn handle_edit_description_window(&mut self, ctx: &egui::Context) {
-        if let Some((folder_name, current_description)) = &mut self.edit_description {
-            let mut is_open = true;
-            let folder_clone = folder_name.clone(); // 克隆文件夹名称以在回调中使用
-
-            egui::Window::new(format!("编辑 {} 的描述", folder_clone))
-                .open(&mut is_open)
-                .resizable(true)
-                .default_width(400.0)
-                .show(ctx, |ui| {
-                    ui.label("描述:");
-
-                    // 直接编辑原始描述字符串的内容
-                    ui.text_edit_multiline(current_description);
-
-                    ui.horizontal(|ui| {
-                        if ui.button("保存").clicked() {
-                            // 直接使用更新后的 current_description
-                            self.save_description(&folder_clone, current_description.clone());
-                            self.edit_description = None; // 关闭窗口
-                        }
-
-                        if ui.button("取消").clicked() {
-                            self.edit_description = None; // 不保存，直接关闭窗口
-                        }
-                    });
-                });
-
-            // 如果窗口关闭，取消编辑
-            if !is_open {
-                self.edit_description = None;
-            }
-        }
-    }
-
-    // 保存描述到YAML文件
-    fn save_description(&mut self, folder: &str, description: String) {
-        // 如果描述为空，则不进行保存
-        if description.trim().is_empty() {
-            return;
-        }
-
-        // 确保folder_descriptions已初始化
-        if self.folder_descriptions.is_none() {
-            self.folder_descriptions = Some(create_default_descriptions());
-        }
-
-        // 更新描述
-        if let Some(descriptions) = &mut self.folder_descriptions {
-            if let Err(e) =
-                descriptions.update_description(folder, &self.selected_appdata_folder, description)
-            {
-                logger::log_error(&format!("更新描述失败: {}", e));
-                self.status = Some(format!("更新描述失败: {}", e));
-                return;
-            }
-
-            // 保存到YAML文件
-            if let Err(e) = descriptions.save_to_yaml("folders_description.yaml") {
-                logger::log_error(&format!("保存描述文件失败: {}", e));
-                self.status = Some(format!("保存描述文件失败: {}", e));
-                return;
-            }
-
-            logger::log_info(&format!("已更新 {} 的描述", folder));
-            self.status = Some(format!("已更新 {} 的描述", folder));
         }
     }
 
@@ -332,6 +261,9 @@ impl ClearTabState {
         if self.folder_descriptions.is_none() {
             self.folder_descriptions =
                 load_folder_descriptions("folders_description.yaml", &mut self.yaml_error_logged);
+
+            // 同步到YAML编辑器
+            self.yaml_editor.folder_descriptions = self.folder_descriptions.clone();
         }
 
         // 删除确认弹窗逻辑
@@ -342,6 +274,22 @@ impl ClearTabState {
             &mut self.status,
             &mut self.folder_data,
         );
+
+        // 处理YAML编辑器窗口
+        // 创建一个本地的回调函数，以避免借用冲突
+        let selected_folder = self.selected_appdata_folder.clone();
+        let status_text = match &self.status {
+            Some(s) => s.clone(),
+            None => String::new(),
+        };
+
+        self.yaml_editor
+            .handle_edit_description_window(ctx, &selected_folder, |message| {
+                // 更新描述后的操作
+                self.status = Some(message);
+                // 重新加载描述
+                self.folder_descriptions = self.yaml_editor.load_descriptions();
+            });
 
         // 扫描按钮和生成描述按钮放在一起
         ui.horizontal(|ui| {
@@ -390,9 +338,6 @@ impl ClearTabState {
         ScrollArea::vertical().show(ui, |ui| {
             self.show_folder_grid(ui);
         });
-
-        // 处理编辑描述的弹窗
-        self.handle_edit_description_window(ctx);
     }
 
     // 设置选中的AppData文件夹
@@ -407,5 +352,7 @@ impl ClearTabState {
     pub fn update_folder_descriptions(&mut self) {
         self.folder_descriptions =
             load_folder_descriptions("folders_description.yaml", &mut self.yaml_error_logged);
+        // 同步到YAML编辑器
+        self.yaml_editor.folder_descriptions = self.folder_descriptions.clone();
     }
 }
