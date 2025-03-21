@@ -191,33 +191,36 @@ impl ClearTabState {
     }
 
     // 处理编辑描述的弹窗
+    // 替换原来的 handle_edit_description_window 方法
     fn handle_edit_description_window(&mut self, ctx: &egui::Context) {
-        if let Some((folder, ref mut description)) = self.edit_description.clone() {
-            let mut description_clone = description.clone();
+        if let Some((folder_name, current_description)) = &mut self.edit_description {
             let mut is_open = true;
+            let folder_clone = folder_name.clone(); // 克隆文件夹名称以在回调中使用
 
-            egui::Window::new(format!("编辑 {} 的描述", folder))
+            egui::Window::new(format!("编辑 {} 的描述", folder_clone))
                 .open(&mut is_open)
                 .resizable(true)
                 .default_width(400.0)
                 .show(ctx, |ui| {
                     ui.label("描述:");
 
-                    // 添加多行文本输入框
-                    ui.text_edit_multiline(&mut description_clone);
+                    // 直接编辑原始描述字符串的内容
+                    ui.text_edit_multiline(current_description);
 
                     ui.horizontal(|ui| {
                         if ui.button("保存").clicked() {
-                            self.save_description(&folder, description_clone.clone());
-                            self.edit_description = None;
+                            // 直接使用更新后的 current_description
+                            self.save_description(&folder_clone, current_description.clone());
+                            self.edit_description = None; // 关闭窗口
                         }
 
                         if ui.button("取消").clicked() {
-                            self.edit_description = None;
+                            self.edit_description = None; // 不保存，直接关闭窗口
                         }
                     });
                 });
 
+            // 如果窗口关闭，取消编辑
             if !is_open {
                 self.edit_description = None;
             }
