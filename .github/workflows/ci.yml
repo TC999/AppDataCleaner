@@ -2,35 +2,41 @@ name: CI
 
 on:
   workflow_dispatch:
+  push:
+    paths-ignore:
+      # 涉及以下路径文件的更改不会触发工作流
+      - LICENSE
+      - README.md
+      - CONTRIBUTING.md
+      - readme/**
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
   build:
-
     runs-on: windows-latest
 
     steps:
-    - name: 仓库初始化
-      uses: actions/checkout@v3
-    - name: 安装 Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        override: true
-    - name: Rust 缓存
-      uses: Swatinem/rust-cache@v2.7.3
+      - name: 仓库初始化
+        uses: actions/checkout@v3
+      - name: 安装 Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: Rust 缓存
+        uses: Swatinem/rust-cache@v2.7.3
 
-    - name: 编译exe
-      uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --release --jobs 4
-    - name: 上传文件
-      uses: actions/upload-artifact@v4
-      with:
-         name: AppDataCleaner
-         path: |
-             target\release\AppDataCleaner.exe
-             target\release\AppDataCleaner.pdb
+      - name: 编译exe
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --jobs 4
+      - name: 上传文件
+        uses: actions/upload-artifact@v4
+        with:
+          name: AppDataCleaner
+          path: |
+            target\release\AppDataCleaner.exe
+            target\release\AppDataCleaner.pdb
