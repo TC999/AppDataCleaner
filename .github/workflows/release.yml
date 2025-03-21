@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       rname:
-        description: '发行版名称'
+        description: "发行版名称"
         type: string
       tag_name:
-        description: '标签名称'
+        description: "标签名称"
         type: string
 
 env:
@@ -15,41 +15,59 @@ env:
 
 jobs:
   build:
-
     runs-on: windows-latest
 
     steps:
-    - name: 仓库初始化
-      uses: actions/checkout@v3
-    - name: 安装 Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        override: true
-    - name: Rust 缓存
-      uses: Swatinem/rust-cache@v2.7.3
+      - name: 仓库初始化
+        uses: actions/checkout@v3
+      - name: 安装 Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+      - name: Rust 缓存
+        uses: Swatinem/rust-cache@v2.7.3
 
-    - name: 编译exe
-      uses: actions-rs/cargo@v1
-      with:
-        command: build
-        args: --release
-    #- name: 上传文件
-    #  uses: actions/upload-artifact@v4
-    #  with:
-    #     name: AppDataCleaner
-    #     path: |
-    #         target\release\AppDataCleaner.exe
-    #         target\release\AppDataCleaner.pdb
-    - name: 自动发布发行版
-      uses: softprops/action-gh-release@v2
-      with:
-        name: ${{ inputs.rname }}
-        tag_name: ${{ inputs.tag_name }}
-        draft: false
-        make_latest: true
-        files: |
-          target/release/AppDataCleaner.exe
-          target/release/AppDataCleaner.pdb
-      env:
-        GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+      - name: 编译exe
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release
+      - name: 上传文件
+        uses: actions/upload-artifact@v4
+        with:
+          name: AppDataCleaner
+          path: |
+            target\release\AppDataCleaner.exe
+            target\release\AppDataCleaner.pdb
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: 下载文件
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: 创建压缩包
+        run: cd artifacts/AppDataCleaner && zip -r "../../AppDataCleaner.zip" .
+
+      - name: 移动文件
+        run: |
+          mv artifacts/AppDataCleaner/AppDataCleaner.exe AppDataCleaner.exe
+          mv artifacts/AppDataCleaner/AppDataCleaner.pdb AppDataCleaner.pdb
+
+      - name: 自动发布发行版
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ inputs.rname }}
+          tag_name: ${{ inputs.tag_name }}
+          draft: false
+          make_latest: true
+          files: |
+            AppDataCleaner.zip
+            AppDataCleaner.exe
+            AppDataCleaner.pdb
