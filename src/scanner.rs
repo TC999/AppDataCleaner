@@ -1,3 +1,4 @@
+// src/scanner.rs
 use std::env;
 use std::path::Path;
 use std::sync::mpsc::Sender;
@@ -6,6 +7,11 @@ use std::{fs, path::PathBuf};
 
 use crate::logger;
 use dirs_next as dirs; // 引入日志模块
+use windows_sys::Win32::Foundation::BOOL;
+use windows_sys::Win32::Storage::FileSystem::{
+    Everything_GetResultFileName, Everything_GetResultSize, Everything_QueryW, Everything_SetSearchW,
+    Everything_SetSort, EVERYTHING_SORT_SIZE_DESCENDING,
+};
 
 pub fn scan_appdata(tx: Sender<(String, u64)>, folder_type: &str) {
     println!("开始扫描 {} 类型的文件夹", folder_type);
@@ -26,7 +32,6 @@ pub fn scan_appdata(tx: Sender<(String, u64)>, folder_type: &str) {
                     .map(|appdata_dir| appdata_dir.join("LocalLow"))
             })
         }
-
         // 未知类型返回 None
         _ => None,
     };
@@ -34,16 +39,10 @@ pub fn scan_appdata(tx: Sender<(String, u64)>, folder_type: &str) {
     // 如果找到有效的目录，开始扫描
     if let Some(appdata_dir) = appdata_dir {
         thread::spawn(move || {
-            if let Ok(entries) = fs::read_dir(&appdata_dir) {
-                for entry in entries.flatten() {
-                    if let Ok(metadata) = entry.metadata() {
-                        if metadata.is_dir() {
-                            let folder_name = entry.file_name().to_string_lossy().to_string();
-                            let size = calculate_folder_size(&entry.path());
-                            // 发送文件夹大小数据
-                            tx.send((folder_name, size)).unwrap();
-                        }
-                    }
+            // 使用 Everything 进行扫描
+            if let Some(results) = scan_with_everything(&appdata_dir) {
+                for (folder_name, size) in results {
+                    tx.send((folder_name, size)).unwrap();
                 }
             }
             // 发送一个特殊标志，表示扫描完成
@@ -52,7 +51,43 @@ pub fn scan_appdata(tx: Sender<(String, u64)>, folder_type: &str) {
     }
 }
 
-// 计算文件夹的总大小（递归）
+// 使用 Everything 进行搜索
+fn scan_with_everything(appdata_dir: &Path) -> Option<Vec<(String, u64)>> {
+    let search_path = format!("{}\\*", appdata_dir.to_string_lossy());
+    let search_path_wide: Vec<u16> = search_path.encode_utf16().chain(Some(0)).collect();
+
+    unsafe {
+        // 设置搜索字符串
+        Everything_SetSearchW(search_path_wide.as_ptr());
+        // 设置排序方式，按大小降序
+        Everything_SetSort(EVERYTHING_SORT_SIZE_DESCENDING);
+        // 执行搜索
+        if Everything_QueryW(BOOL(1)) == 0 {
+            eprintln!("Everything query failed");
+            return None;
+        }
+
+        let mut results = Vec::new();
+        let mut index = 0;
+        loop {
+            let file_name_ptr = Everything_GetResultFileName(index);
+            if file_name_ptr.is_null() {
+                break;
+            }
+            let file_name = std::ffi::CStr::from_ptr(file_name_ptr as *const i8)
+                .to_string_lossy()
+                .to_string();
+            let file_size = Everything_GetResultSize(index);
+
+            results.push((file_name, file_size));
+            index += 1;
+        }
+
+        Some(results)
+    }
+}
+
+// 计算文件夹的总大小（递归），此函数暂时保留，以备非 NTFS 分区使用
 fn calculate_folder_size(folder: &Path) -> u64 {
     let mut size = 0;
 
