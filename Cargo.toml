@@ -20,3 +20,6 @@ chrono = "0.4.40"
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3", features = ["winbase", "fileapi", "winnt"] }
+
+[package.metadata.windows]
+requested_execution_level = "requireAdministrator"

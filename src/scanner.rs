@@ -1,26 +1,19 @@
 use std::{
     collections::{HashMap, HashSet},
-    env,
-    ffi::OsString,
-    fs,
-    io::{self, Seek, SeekFrom},
-    mem,
+    env, fs, io,
     path::{Path, PathBuf},
     sync::mpsc::Sender,
     thread,
-    time::Duration,
 };
 
+#[cfg(windows)]
 use winapi::{
-    ctypes::c_void,
+    shared::minwindef::MAX_PATH,
     um::{
-        fileapi::ReadFile,
-        winbase::{GetLastError, MAX_PATH},
-        winnt::{
-            FILE_ATTRIBUTE_DIRECTORY, FILE_FLAG_BACKUP_SEMANTICS, FILE_SHARE_READ,
-            FILE_SHARE_WRITE, GENERIC_READ, HANDLE, INVALID_HANDLE_VALUE, LARGE_INTEGER,
-            OPEN_EXISTING, USN,
-        },
+        errhandlingapi::GetLastError,
+        fileapi::CreateFileW,
+        winbase::{FILE_FLAG_BACKUP_SEMANTICS, INVALID_HANDLE_VALUE, OPEN_EXISTING},
+        winnt::{FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ, HANDLE},
     },
 };
 
@@ -46,15 +39,20 @@ struct FileEntry {
     parent_id: u64,
 }
 
+// 安全：因为我们确保每个线程拥有自己的句柄，并且句柄不跨线程共享（每个线程独立使用）
+#[cfg(windows)]
+unsafe impl Send for NtfsScanner {}
+
 #[cfg(windows)]
 impl NtfsScanner {
     /// 打开NTFS卷准备扫描
+    #[allow(unused_variables)] // 忽略handle未使用的警告（实际上在结构体中使用了）
     pub fn open(volume: &str) -> io::Result<Self> {
         let volume_path = format!(r"\\.\{}", volume.trim_end_matches('\\'));
         let wide_volume_path: Vec<u16> = volume_path.encode_utf16().chain(Some(0)).collect();
 
         unsafe {
-            let handle = winapi::um::fileapi::CreateFileW(
+            let handle = CreateFileW(
                 wide_volume_path.as_ptr(),
                 GENERIC_READ,
                 FILE_SHARE_READ | FILE_SHARE_WRITE,
