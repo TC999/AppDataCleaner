@@ -7,6 +7,7 @@ use std::{
 };
 
 #[cfg(windows)]
+use winapi::um::fileapi::OPEN_EXISTING;
 use winapi::um::{
     errhandlingapi::GetLastError,
     fileapi::CreateFileW,
