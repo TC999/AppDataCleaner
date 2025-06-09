@@ -155,7 +155,7 @@ impl ClearTabState {
                     if confirm {
                         let selected_folders: Vec<String> = folder_data
                             .iter()
-                            .filter(|(folder, _)| confirm_delete.as_ref().map_or(false, |c| c.1))
+                            .filter(|(_folder, _)| confirm_delete.as_ref().map_or(false, |c| c.1))
                             .map(|(folder, _)| folder.clone())
                             .collect();
 

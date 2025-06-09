@@ -7,14 +7,11 @@ use std::{
 };
 
 #[cfg(windows)]
-use winapi::{
-    shared::minwindef::MAX_PATH,
-    um::{
-        errhandlingapi::GetLastError,
-        fileapi::CreateFileW,
-        winbase::{FILE_FLAG_BACKUP_SEMANTICS, INVALID_HANDLE_VALUE, OPEN_EXISTING},
-        winnt::{FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ, HANDLE},
-    },
+use winapi::um::{
+    errhandlingapi::GetLastError,
+    fileapi::CreateFileW,
+    winbase::{FILE_FLAG_BACKUP_SEMANTICS, INVALID_HANDLE_VALUE, OPEN_EXISTING},
+    winnt::{FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ, HANDLE},
 };
 
 use crate::logger;
