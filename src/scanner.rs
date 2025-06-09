@@ -7,11 +7,11 @@ use std::{
 };
 
 #[cfg(windows)]
-use winapi::um::fileapi::OPEN_EXISTING;
 use winapi::um::{
     errhandlingapi::GetLastError,
-    fileapi::CreateFileW,
-    winbase::{FILE_FLAG_BACKUP_SEMANTICS, INVALID_HANDLE_VALUE, OPEN_EXISTING},
+    fileapi::{CreateFileW, OPEN_EXISTING},
+    handleapi::INVALID_HANDLE_VALUE,
+    winbase::FILE_FLAG_BACKUP_SEMANTICS,
     winnt::{FILE_SHARE_READ, FILE_SHARE_WRITE, GENERIC_READ, HANDLE},
 };
 
