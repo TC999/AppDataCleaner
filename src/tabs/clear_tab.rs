@@ -156,7 +156,7 @@ impl ClearTabState {
                     if confirm {
                         let selected_folders: Vec<String> = folder_data
                             .iter()
-                            .filter(|(folder, _)| confirm_delete.as_ref().map_or(false, |c| c.1))
+                            .filter(|(_folder, _)| confirm_delete.as_ref().map_or(false, |c| c.1))
                             .map(|(folder, _)| folder.clone())
                             .collect();
 
@@ -423,6 +423,10 @@ impl ClearTabState {
                 if folder == "__SCAN_COMPLETE__" {
                     self.is_scanning = false;
                     self.status = Some("扫描完成".to_string());
+                } else if folder.starts_with("__STATUS__") {
+                    // 处理状态消息
+                    let status_msg = folder.strip_prefix("__STATUS__").unwrap_or(&folder);
+                    self.status = Some(status_msg.to_string());
                 } else {
                     self.folder_data.push((folder, size));
                 }

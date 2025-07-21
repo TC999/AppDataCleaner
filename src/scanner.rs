@@ -36,12 +36,18 @@ fn scan_with_database(tx: Sender<(String, u64)>, folder_type: &str) -> Result<()
     if db_exists && db.has_data_for_type(folder_type)? {
         logger::log_info(&format!("从数据库加载 {} 类型的文件夹数据", folder_type));
         
+        // 发送状态消息（使用特殊前缀识别）
+        tx.send(("__STATUS__从缓存加载数据...".to_string(), 0))?;
+        
         let cached_records = db.get_folders_by_type(folder_type)?;
         for record in &cached_records {
             tx.send((record.folder_name.clone(), record.folder_size))?;
         }
         
         logger::log_info(&format!("从数据库加载了 {} 个文件夹记录", cached_records.len()));
+        
+        // 发送状态消息
+        tx.send(("__STATUS__正在检查文件系统变化...".to_string(), 0))?;
     }
     
     // 执行实际的文件系统扫描

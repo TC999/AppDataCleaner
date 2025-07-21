@@ -198,3 +198,122 @@ pub fn get_default_db_path() -> String {
 pub fn database_exists(db_path: &str) -> bool {
     Path::new(db_path).exists()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    
+    #[test]
+    fn test_database_creation_and_basic_operations() {
+        let test_db_path = "test_db.db";
+        
+        // 清理之前的测试数据库
+        if database_exists(test_db_path) {
+            fs::remove_file(test_db_path).unwrap();
+        }
+        
+        // 创建数据库
+        let db = Database::new(test_db_path).unwrap();
+        
+        // 测试初始状态
+        assert!(!db.has_data_for_type("Roaming").unwrap());
+        
+        // 创建测试记录
+        let test_record = FolderRecord {
+            id: None,
+            folder_type: "Roaming".to_string(),
+            folder_name: "TestApp".to_string(),
+            folder_size: 1024,
+            last_modified: Utc::now(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        
+        // 插入记录
+        db.batch_upsert_folders(&[test_record]).unwrap();
+        
+        // 验证数据存在
+        assert!(db.has_data_for_type("Roaming").unwrap());
+        
+        // 获取记录
+        let folders = db.get_folders_by_type("Roaming").unwrap();
+        assert_eq!(folders.len(), 1);
+        assert_eq!(folders[0].folder_name, "TestApp");
+        assert_eq!(folders[0].folder_size, 1024);
+        
+        // 清理测试数据库
+        fs::remove_file(test_db_path).unwrap();
+    }
+    
+    #[test]
+    fn test_database_update_and_cleanup() {
+        let test_db_path = "test_update_db.db";
+        
+        // 清理之前的测试数据库
+        if database_exists(test_db_path) {
+            fs::remove_file(test_db_path).unwrap();
+        }
+        
+        let db = Database::new(test_db_path).unwrap();
+        
+        // 插入初始记录
+        let initial_records = vec![
+            FolderRecord {
+                id: None,
+                folder_type: "Roaming".to_string(),
+                folder_name: "App1".to_string(),
+                folder_size: 1024,
+                last_modified: Utc::now(),
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+            },
+            FolderRecord {
+                id: None,
+                folder_type: "Roaming".to_string(),
+                folder_name: "App2".to_string(),
+                folder_size: 2048,
+                last_modified: Utc::now(),
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+            },
+        ];
+        
+        db.batch_upsert_folders(&initial_records).unwrap();
+        
+        // 验证记录存在
+        let folders = db.get_folders_by_type("Roaming").unwrap();
+        assert_eq!(folders.len(), 2);
+        
+        // 更新一个记录
+        let updated_record = FolderRecord {
+            id: None,
+            folder_type: "Roaming".to_string(),
+            folder_name: "App1".to_string(),
+            folder_size: 4096, // 更新大小
+            last_modified: Utc::now(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        
+        db.batch_upsert_folders(&[updated_record]).unwrap();
+        
+        // 验证更新
+        let updated_folders = db.get_folders_by_type("Roaming").unwrap();
+        assert_eq!(updated_folders.len(), 2);
+        
+        let app1 = updated_folders.iter().find(|f| f.folder_name == "App1").unwrap();
+        assert_eq!(app1.folder_size, 4096);
+        
+        // 测试清理不存在的文件夹
+        let existing_folders = vec!["App1".to_string()]; // 只保留 App1
+        db.remove_missing_folders("Roaming", &existing_folders).unwrap();
+        
+        let remaining_folders = db.get_folders_by_type("Roaming").unwrap();
+        assert_eq!(remaining_folders.len(), 1);
+        assert_eq!(remaining_folders[0].folder_name, "App1");
+        
+        // 清理测试数据库
+        fs::remove_file(test_db_path).unwrap();
+    }
+}
