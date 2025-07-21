@@ -31,3 +31,8 @@ adcignore.txt
 
 # yaml 规则文件
 *.yaml
+
+# 数据库文件
+*.db
+*.sqlite
+*.sqlite3

@@ -1,6 +1,7 @@
 // mod about; // 关于界面
 pub mod ai_config; // 使用 pub 使其可以被其他模块访问
 mod confirmation; // 确认删除模块
+mod database; // 数据库模块
 mod delete; // 引入删除模块
 mod ignore; // 引入忽略模块
 mod logger; // 引入日志模块
