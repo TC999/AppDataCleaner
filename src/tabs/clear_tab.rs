@@ -479,10 +479,30 @@ impl ClearTabState {
 
     // 设置选中的AppData文件夹
     pub fn set_selected_appdata_folder(&mut self, folder: String) {
-        self.selected_appdata_folder = folder;
+        self.selected_appdata_folder = folder.clone();
         self.folder_data.clear();
         self.is_scanning = false;
         self.status = Some("未扫描".to_string());
+
+        // 尝试加载数据库缓存（如果有）
+        if let Ok(db) = crate::database::Database::new("appdata_cleaner.db") {
+            if db.has_data_for_type(&folder).unwrap_or(false) {
+                // 有缓存则直接加载
+                if let Ok(records) = db.get_folders_by_type(&folder) {
+                    self.folder_data = records.iter().map(|r| (r.folder_name.clone(), r.folder_size)).collect();
+                    self.is_scanning = false;
+                    self.status = Some("已加载缓存".to_string());
+                    return;
+                }
+            }
+        }
+        // 没有缓存则自动触发扫描
+        self.is_scanning = true;
+        self.status = Some("扫描中...".to_string());
+        if let Some(tx) = self.tx.clone() {
+            let folder_type = self.selected_appdata_folder.clone();
+            crate::scanner::scan_appdata(tx, &folder_type);
+        }
     }
 
     // 更新文件夹描述
