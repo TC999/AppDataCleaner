@@ -43,8 +43,10 @@ impl Default for MoveModule {
 
 impl MoveModule {
     pub fn show_move_window(&mut self, ctx: &egui::Context) {
+        let mut receiver = self.receiver.take();
         // 非阻塞地检查进度消息
-        if let Some(rx) = &self.receiver {
+        if let Some(rx) = receiver.as_ref() {
+            let mut should_clear_receiver = false;
             while let Ok(msg) = rx.try_recv() {
                 match msg {
                     ProgressMessage::Progress(progress, status) => {
@@ -64,17 +66,21 @@ impl MoveModule {
                     ProgressMessage::Success(msg) => {
                         self.progress = 1.0;
                         self.status_message = Some(msg);
-                        self.receiver = None; // 完成后清除接收器
+                        //self.receiver = None; // 完成后清除接收器
                         ctx.request_repaint();
                         logger::log_info("文件夹移动操作成功完成");
                     }
                     ProgressMessage::Error(err) => {
                         self.status_message = Some(err.clone());
-                        self.receiver = None; // 错误后清除接收器
+                        //self.receiver = None; // 错误后清除接收器
                         ctx.request_repaint();
                         logger::log_error(&err);
                     }
                 }
+            }
+            if !should_clear_receiver {
+            // 操作未结束，放回 self.receiver
+                self.receiver = receiver;
             }
         }
 
@@ -208,7 +214,7 @@ impl MoveModule {
             if cfg!(target_os = "windows") {
                 let output = std::process::Command::new("cmd")
                     .args([
-                        "/C",
+                        //"/C",
                         "mklink",
                         "/D",
                         &format!("\"{}\"", source_path.display()),
