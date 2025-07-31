@@ -239,16 +239,25 @@ impl MoveModule {
                 }
             } else {
                 // 非 Windows 系统，尝试创建软链接
-                if let Err(err) = std::os::unix::fs::symlink(&target_folder_path, &source_path) {
-                    let _ = tx.send(ProgressMessage::Error(format!("创建符号链接失败: {}", err)));
-                } else {
-                    let success_msg = format!(
-                        "移动文件夹操作成功完成！\n源目录: {}\n目标目录: {}\n符号链接已创建",
-                        source_path.display(),
-                        target_folder_path.display()
-                    );
-                    logger::log_info(&success_msg);
-                    let _ = tx.send(ProgressMessage::Success(success_msg));
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::symlink;
+                    if let Err(err) = symlink(&target_folder_path, &source_path) {
+                        let _ = tx.send(ProgressMessage::Error(format!("创建符号链接失败: {}", err)));
+                    } else {
+                        let success_msg = format!(
+                            "移动文件夹操作成功完成！\n源目录: {}\n目标目录: {}\n符号链接已创建",
+                            source_path.display(),
+                            target_folder_path.display()
+                        );
+                        logger::log_info(&success_msg);
+                        let _ = tx.send(ProgressMessage::Success(success_msg));
+                    }
+                }
+                
+                #[cfg(not(unix))]
+                {
+                    let _ = tx.send(ProgressMessage::Error("此平台不支持符号链接创建".to_string()));
                 }
             }
         });
@@ -413,4 +422,86 @@ fn calculate_file_hash(file_path: &Path) -> Result<String, String> {
     }
     
     Ok(format!("{:x}", hasher.finalize()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::io::Write;
+
+    #[test]
+    fn test_calculate_file_hash() {
+        // 创建临时文件进行测试
+        let test_content = b"Hello, World!";
+        let temp_dir = std::env::temp_dir();
+        let test_file = temp_dir.join("test_hash_file.txt");
+        
+        // 写入测试内容
+        fs::write(&test_file, test_content).unwrap();
+        
+        // 计算哈希
+        let hash = calculate_file_hash(&test_file).unwrap();
+        
+        // 验证哈希值（SHA-256 of "Hello, World!")
+        let expected_hash = "dffd6021bb2bd5b0af676290809ec3a53191dd81c7f70a4b28688a362182986f";
+        assert_eq!(hash, expected_hash);
+        
+        // 清理
+        fs::remove_file(&test_file).unwrap();
+    }
+
+    #[test]
+    fn test_count_files_in_directory() {
+        // 创建临时目录和文件进行测试
+        let temp_dir = std::env::temp_dir().join("test_count_files");
+        fs::create_dir_all(&temp_dir).unwrap();
+        
+        // 创建一些测试文件
+        fs::write(temp_dir.join("file1.txt"), "content1").unwrap();
+        fs::write(temp_dir.join("file2.txt"), "content2").unwrap();
+        
+        // 创建子目录
+        let sub_dir = temp_dir.join("subdir");
+        fs::create_dir_all(&sub_dir).unwrap();
+        fs::write(sub_dir.join("file3.txt"), "content3").unwrap();
+        
+        // 测试文件计数
+        let count = count_files_in_directory(&temp_dir).unwrap();
+        assert_eq!(count, 3); // 应该有3个文件
+        
+        // 清理
+        fs::remove_dir_all(&temp_dir).unwrap();
+    }
+
+    #[test]
+    fn test_collect_all_files() {
+        // 创建临时目录和文件进行测试
+        let temp_dir = std::env::temp_dir().join("test_collect_files");
+        fs::create_dir_all(&temp_dir).unwrap();
+        
+        // 创建一些测试文件
+        fs::write(temp_dir.join("file1.txt"), "content1").unwrap();
+        fs::write(temp_dir.join("file2.txt"), "content2").unwrap();
+        
+        // 创建子目录
+        let sub_dir = temp_dir.join("subdir");
+        fs::create_dir_all(&sub_dir).unwrap();
+        fs::write(sub_dir.join("file3.txt"), "content3").unwrap();
+        
+        // 测试文件收集
+        let files = collect_all_files(&temp_dir).unwrap();
+        assert_eq!(files.len(), 3);
+        
+        // 验证文件路径
+        let file_names: Vec<String> = files.iter()
+            .map(|p| p.file_name().unwrap().to_string_lossy().to_string())
+            .collect();
+        assert!(file_names.contains(&"file1.txt".to_string()));
+        assert!(file_names.contains(&"file2.txt".to_string()));
+        assert!(file_names.contains(&"file3.txt".to_string()));
+        
+        // 清理
+        fs::remove_dir_all(&temp_dir).unwrap();
+    }
 }
