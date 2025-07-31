@@ -212,6 +212,15 @@ impl MoveModule {
 
             // 步骤 5: 创建符号链接
             if cfg!(target_os = "windows") {
+                // 构建命令字符串用于显示
+                let mklink_cmd = format!(
+                    "cmd mklink /D \"{}\" \"{}\"",
+                    source_path.display(),
+                    target_folder_path.display()
+                );
+                println!("即将执行命令: {}", mklink_cmd);
+                logger::log_info(&format!("即将执行命令: {}", mklink_cmd));
+
                 let output = std::process::Command::new("cmd")
                     .args([
                         //"/C",
