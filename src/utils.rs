@@ -25,6 +25,7 @@ pub fn get_appdata_dir(folder_type: &str) -> Option<PathBuf> {
 
 use std::fs;
 use std::path::Path;
+use std::env;
 use sha2::{Digest, Sha256};
 
 #[allow(dead_code)]
@@ -45,5 +46,10 @@ pub fn compare_dirs_hash(source: &Path, target: &Path) -> Result<bool, std::io::
         .collect::<Result<_, _>>()?;
 
     Ok(source_hashes == target_hashes)
+}
+
+// 获取系统Temp目录
+pub fn get_temp_dir() -> Option<PathBuf> {
+    env::temp_dir().exists().then(|| env::temp_dir())
 }
 
