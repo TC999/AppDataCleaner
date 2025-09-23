@@ -1,3 +1,4 @@
+#[derive(Clone)]
 pub struct Stats {
     pub cleaned_folders_count: u64,
     pub total_cleaned_size: u64,

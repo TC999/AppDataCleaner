@@ -165,6 +165,16 @@ fn perform_filesystem_scan(folder_type: &str) -> Result<Vec<(String, u64)>, Box<
                 if let Ok(metadata) = entry.metadata() {
                     if metadata.is_dir() {
                         let folder_name = entry.file_name().to_string_lossy().to_string();
+                        
+                        // 如果是Local目录下的Temp目录，则跳过
+                        let should_skip = folder_type == "Local" && 
+                                       folder_name.to_lowercase() == "temp";
+                        
+                        if should_skip {
+                            logger::log_info(&format!("跳过 Temp 目录: {}", folder_name));
+                            continue;
+                        }
+                        
                         let size = calculate_folder_size(&entry.path());
                         results.push((folder_name, size));
                     }

@@ -2,6 +2,7 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::PathBuf;
 
+#[derive(Clone)]
 pub struct StatsLogger {
     file_path: PathBuf,
 }

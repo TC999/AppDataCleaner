@@ -146,9 +146,13 @@ impl AppDataCleaner {
             ui.horizontal(|ui| {  
                 // 左侧标签页和选项
                 ui.selectable_value(&mut self.current_tab, "主页".to_string(), "主页");
-                ui.selectable_value(&mut self.current_tab, "关于".to_string(), "关于");
-                ui.selectable_value(&mut self.current_tab, "AI配置".to_string(), "AI配置");
-                ui.label("|"); // 添加分隔符
+            ui.selectable_value(&mut self.current_tab, "关于".to_string(), "关于");
+            ui.selectable_value(&mut self.current_tab, "AI配置".to_string(), "AI配置");
+            ui.label("|"); // 添加分隔符
+            if ui.button("清理 Temp").clicked() {
+                self.clear_tab.clean_temp_directory();
+            }
+            ui.label("|"); // 添加分隔符
                 ui.checkbox(&mut self.is_logging_enabled, "启用日志");
 
                 // 添加一个弹性空间，将后面的内容推到右侧

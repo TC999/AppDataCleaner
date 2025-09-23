@@ -7,7 +7,9 @@ use crate::{confirmation, delete, ignore, logger, move_module, open, scanner, ut
 use eframe::egui::{self, Grid, ScrollArea};
 use std::collections::HashSet;
 use std::path::PathBuf;
-use std::sync::mpsc::{Receiver, Sender}; // 引入 StatsLogger 模块
+use std::sync::mpsc::{Receiver, Sender};
+use std::fs;
+use std::thread; // 引入 StatsLogger 模块
 
 pub struct ClearTabState {
     // 基础字段
@@ -44,6 +46,7 @@ pub struct ClearTabState {
     // 新增字段
     pub stats: Stats,
     pub stats_logger: StatsLogger, // 新增字段
+    pub is_cleaning_temp: bool, // 是否正在清理Temp目录
 }
 
 impl Default for ClearTabState {
@@ -85,6 +88,7 @@ impl Default for ClearTabState {
             // 新增字段初始化
             stats: Stats::new(),
             stats_logger: StatsLogger::new(PathBuf::from("stats.log")), // 初始化 StatsLogger
+            is_cleaning_temp: false, // 初始化为false
         }
     }
 }
@@ -423,6 +427,9 @@ impl ClearTabState {
                 if folder == "__SCAN_COMPLETE__" {
                     self.is_scanning = false;
                     self.status = Some("扫描完成".to_string());
+                } else if folder == "__TEMP_CLEANUP_COMPLETE__" {
+                    // 处理Temp目录清理完成的标志
+                    self.is_cleaning_temp = false;
                 } else if folder.starts_with("__STATUS__") {
                     // 处理状态消息
                     let status_msg = folder.strip_prefix("__STATUS__").unwrap_or(&folder);
@@ -509,5 +516,86 @@ impl ClearTabState {
     pub fn update_folder_descriptions(&mut self) {
         self.folder_descriptions =
             load_folder_descriptions("folders_description.yaml", &mut self.yaml_error_logged);
+    }
+
+    // 清理Temp目录的方法
+    pub fn clean_temp_directory(&mut self) {
+        if self.is_cleaning_temp {
+            return; // 已经在清理中，避免重复操作
+        }
+        
+        self.is_cleaning_temp = true;
+        self.status = Some("开始清理Temp目录...".to_string());
+        
+        // 克隆所需的数据用于线程
+        let stats_logger_clone = self.stats_logger.clone();
+        let mut stats_clone = self.stats.clone();
+        
+        // 保存tx的引用，用于发送状态消息
+        let temp_tx = self.tx.clone();
+        
+        // 创建清理线程
+        thread::spawn(move || {
+            let mut total_cleaned_size = 0;
+            let mut deleted_files = 0;
+            let mut skipped_files = 0;
+            
+            // 创建日志上下文
+            let log_ctx = logger::LogContext::new("TEMP_CLEANUP");
+            
+            // 获取Temp目录
+            if let Some(temp_dir) = crate::utils::get_temp_dir() {
+                println!("正在清理Temp目录: {}", temp_dir.display());
+                crate::logger::log_info(&format!("正在清理Temp目录: {}", temp_dir.display()));
+                
+                // 遍历Temp目录中的所有项
+                if let Ok(entries) = fs::read_dir(&temp_dir) {
+                    for entry in entries {
+                        match entry {
+                            Ok(entry) => {
+                                let path = entry.path();
+                                
+                                // 尝试删除文件或目录
+                                if path.is_file() {
+                                    if let Ok(metadata) = entry.metadata() {
+                                        let file_size = metadata.len();
+                                        if fs::remove_file(&path).is_ok() {
+                                            total_cleaned_size += file_size;
+                                            deleted_files += 1;
+                                        } else {
+                                            skipped_files += 1;
+                                            crate::logger::log_structured_warn(&log_ctx, &format!("跳过无法删除的文件: {}", path.display()));
+                                        }
+                                    }
+                                } else if path.is_dir() {
+                                    // 对于目录，尝试递归删除
+                                    if let Err(err) = fs::remove_dir_all(&path) {
+                                        skipped_files += 1;
+                                        crate::logger::log_structured_warn(&log_ctx, &format!("跳过无法删除的目录 {}: {}", path.display(), err));
+                                    } else {
+                                        deleted_files += 1;
+                                    }
+                                }
+                            },
+                            Err(err) => {
+                                skipped_files += 1;
+                                crate::logger::log_structured_warn(&log_ctx, &format!("无法访问Temp目录项: {}", err));
+                            }
+                        }
+                    }
+                }
+            } else {
+                crate::logger::log_error("无法获取Temp目录");
+            }
+            
+            // 发送完成状态消息
+            if let Some(tx) = temp_tx {
+                // 发送状态更新
+                let _ = tx.send(("__STATUS__Temp目录清理完成".to_string(), 0));
+                
+                // 发送完成标志
+                let _ = tx.send(("__TEMP_CLEANUP_COMPLETE__".to_string(), 0));
+            }
+        });
     }
 }
