@@ -1,0 +1,32 @@
+name: 屎山代码检测
+
+on:
+  workflow_dispatch:
+
+jobs:
+  Check:
+    name: 检测屎山代码
+    runs-on: ubuntu-latest
+    #env:
+    #  PATH: ${{ env.PATH }}:$(go env GOPATH)/bin
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+      - name: 安装检测工具
+        run: |
+          go install github.com/Done-0/fuck-u-code/cmd/fuck-u-code@latest
+
+      - name: 检测
+        run: |
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          fuck-u-code analyze --lang zh_CN --markdown > report.md
+
+      - name: 打印报告
+        run: |
+          cat report.md
+
+      - name: 上传报告
+        uses: actions/upload-artifact@v4
+        with:
+          name: report
+          path: report.md
