@@ -47,6 +47,9 @@ pub struct ClearTabState {
     pub stats: Stats,
     pub stats_logger: StatsLogger, // 新增字段
     pub is_cleaning_temp: bool, // 是否正在清理Temp目录
+
+    // 删除数据库确认相关字段
+    pub show_delete_db_confirmation: bool,
 }
 
 impl Default for ClearTabState {
@@ -89,6 +92,9 @@ impl Default for ClearTabState {
             stats: Stats::new(),
             stats_logger: StatsLogger::new(PathBuf::from("stats.log")), // 初始化 StatsLogger
             is_cleaning_temp: false, // 初始化为false
+
+            // 删除数据库确认相关字段初始化
+            show_delete_db_confirmation: false,
         }
     }
 }
@@ -415,6 +421,11 @@ impl ClearTabState {
                     callback(&self.folder_data, &self.selected_appdata_folder);
                 }
             }
+
+            // 删除数据库按钮
+            if ui.button("删除数据库").clicked() {
+                self.show_delete_db_confirmation = true;
+            }
         });
 
         // 添加批量操作按钮
@@ -452,6 +463,30 @@ impl ClearTabState {
         ScrollArea::vertical().show(ui, |ui| {
             self.show_folder_grid(ui);
         });
+
+        // 删除数据库确认对话框
+        if self.show_delete_db_confirmation {
+            egui::Window::new("确认删除数据库")
+                .collapsible(false)
+                .resizable(false)
+                .show(ui.ctx(), |ui| {
+                    ui.label("确定要删除数据库吗？");
+                    ui.horizontal(|ui| {
+                        if ui.button("是").clicked() {
+                            // 删除数据库文件
+                            let db_path = get_default_db_path();
+                            let _ = std::fs::remove_file(&db_path);
+
+                            // 更新状态
+                            self.status = Some("数据库已删除".to_string());
+                            self.show_delete_db_confirmation = false;
+                        }
+                        if ui.button("否").clicked() {
+                            self.show_delete_db_confirmation = false;
+                        }
+                    });
+                });
+        }
     }
 
     pub fn show_bulk_actions(&mut self, ui: &mut egui::Ui) {
