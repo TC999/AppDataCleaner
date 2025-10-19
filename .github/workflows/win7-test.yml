@@ -15,6 +15,11 @@ jobs:
       - name: 仓库初始化
         uses: actions/checkout@v3
 
+      - name: 安装 LLVM
+        uses: ZhongRuoyu/setup-llvm@v0
+        with:
+          llvm-version: 17
+
       - name: 安装 Rust
         run: |
           rustup toolchain install nightly
