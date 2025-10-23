@@ -9,31 +9,31 @@ env:
 jobs:
   x64:
     name: x64
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
       - name: 仓库初始化
         uses: actions/checkout@v3
 
-      - name: 安装 LLVM
-        uses: ZhongRuoyu/setup-llvm@v0
-        with:
-          llvm-version: 17
+      #- name: 安装 LLVM
+      #  uses: ZhongRuoyu/setup-llvm@v0
+      #  with:
+      #    llvm-version: 17
 
       - name: 安装 Rust
         run: |
           rustup toolchain install nightly
           rustup default nightly
-          rustup component add rust-src --toolchain nightly-x86_64-pc-windows-msvc
+          rustup component add rust-src --toolchain nightly-x86_64-pc-windows-gnu
 
       - name: 编译
         run: |
-          cargo build --release -Z build-std --target x86_64-win7-windows-msvc
+          cargo build --release -Z build-std --target x86_64-win7-windows-gnu
 
       - name: 上传文件
         uses: actions/upload-artifact@v4
         with:
           name: AppDataCleaner
           path: |
-            target\x86_64-win7-windows-msvc\release\AppDataCleaner.exe
-            target\x86_64-win7-windows-msvc\release\AppDataCleaner.pdb
+            target\x86_64-win7-windows-gnu\release\AppDataCleaner.exe
+            target\x86_64-win7-windows-gnu\release\AppDataCleaner.pdb
