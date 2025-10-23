@@ -28,7 +28,7 @@ jobs:
       - name: 安装 Rust
         run: |
           rustup toolchain install nightly
-          rustup default nightly
+          #rustup default nightly
           rustup component add rust-src --toolchain nightly-x86_64-pc-windows-gnu
 
       - name: 编译
