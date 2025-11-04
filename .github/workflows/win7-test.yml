@@ -27,14 +27,14 @@ jobs:
           rustup toolchain install nightly
           rustup default nightly
           # 添加目标（使用标准 target）
-          rustup target add x86_64-pc-windows-gnu
+          rustup target add nightly-x86_64-pc-windows-gnu
           # 为需要的宿主 toolchain 安装 rust-src（如果你使用 -Z build-std）
           rustup component add rust-src --toolchain nightly
 
       - name: 编译（交叉编译到 Windows GNU）
         run: |
           # 可选：显示更多构建输出以便调试
-          cargo build --release -Z build-std --target x86_64-pc-windows-gnu
+          cargo build --release -Z build-std --target x86_64-win7-windows-gnu
 
       - name: 上传文件
         uses: actions/upload-artifact@v4
