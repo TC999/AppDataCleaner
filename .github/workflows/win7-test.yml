@@ -20,6 +20,13 @@ jobs:
           rustup default nightly
           rustup component add rust-src --toolchain nightly-x86_64-pc-windows-msvc
 
+      - name: 安装 LLVM
+        run: |
+          wget https://github.com/PLC-lang/llvm-package-windows/releases/download/v14.0.6/LLVM-14.0.6-win64.7z
+          unzip LLVM-14.0.6-win64.7z -d $env:ProgramFiles\LLVM
+          $env:PATH = "$env:ProgramFiles\LLVM\bin;$env:PATH"
+          echo $env:PATH
+
       - name: 构建（Windows MSVC）
         run: |
           cargo build --release -Z build-std --target x86_64-win7-windows-msvc
