@@ -1,4 +1,3 @@
-# .github/workflows/win7-test.yml (ref b246f700701b7c4d4af135b23ea2c5a3144a6b0b)
 name: Win7 测试
 
 on:
@@ -6,38 +5,26 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  # 明确设置 cargo 使用的链接器（可根据需要改为 x86_64-w64-mingw32-gcc）
-  #CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER: x86_64-w64-mingw32-gcc
 
 jobs:
   x64:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: 仓库初始化
         uses: actions/checkout@v4
 
-      #- name: 安装 mingw-w64（交叉链接器）
-      #  run: |
-      #    sudo apt-get update
-      #    sudo apt-get install -y mingw-w64
-
-      - name: 安装 Rust nightly 并添加目标
+      - name: 安装并切换到 MSVC Rust toolchain
         run: |
           rustup toolchain install nightly
           rustup default nightly
-          # 添加目标（使用标准 target）
-          rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu
           rustup component add rust-src --toolchain nightly-x86_64-pc-windows-msvc
-          # 为需要的宿主 toolchain 安装 rust-src（如果你使用 -Z build-std）
-          #rustup component add rust-src --toolchain nightly
 
-      - name: 编译（交叉编译到 Windows GNU）
+      - name: 构建（Windows MSVC）
         run: |
-          # 可选：显示更多构建输出以便调试
           cargo build --release -Z build-std --target x86_64-win7-windows-msvc
 
-      - name: 上传文件
+      - name: 上传构建产物
         uses: actions/upload-artifact@v4
         with:
           name: AppDataCleaner
