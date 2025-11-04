@@ -22,8 +22,9 @@ jobs:
 
       - name: 安装 LLVM
         run: |
-          curl https://github.com/PLC-lang/llvm-package-windows/releases/download/v14.0.6/LLVM-14.0.6-win64.7z -o LLVM.7z
-          7z x LLVM-14.0.6-win64.7z -o $env:ProgramFiles\LLVM
+          choco install wget
+          wget https://github.com/PLC-lang/llvm-package-windows/releases/download/v14.0.6/LLVM-14.0.6-win64.7z -o LLVM.7z
+          7z x LLVM-14.0.6-win64.7z -o$env:ProgramFiles\LLVM
           $env:PATH = "$env:ProgramFiles\LLVM\bin;$env:PATH"
           echo $env:PATH
 
