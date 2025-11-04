@@ -27,6 +27,7 @@ jobs:
           rustup toolchain install nightly
           rustup default nightly
           # 添加目标（使用标准 target）
+          rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu
           rustup component add rust-src --toolchain nightly-x86_64-pc-windows-msvc
           # 为需要的宿主 toolchain 安装 rust-src（如果你使用 -Z build-std）
           #rustup component add rust-src --toolchain nightly
