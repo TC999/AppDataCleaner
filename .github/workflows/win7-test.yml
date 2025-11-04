@@ -20,13 +20,56 @@ jobs:
           rustup default nightly
           rustup component add rust-src --toolchain nightly-x86_64-pc-windows-msvc
 
-      - name: 安装 LLVM
+      - name: 安装并解压 LLVM 到仓库目录并加入 PATH
+        shell: pwsh
         run: |
-          choco install wget
-          wget https://github.com/PLC-lang/llvm-package-windows/releases/download/v14.0.6/LLVM-14.0.6-win64.7z -o LLVM.7z
-          7z x LLVM-14.0.6-win64.7z -o$env:ProgramFiles\LLVM
-          $env:PATH = "$env:ProgramFiles\LLVM\bin;$env:PATH"
-          echo $env:PATH
+          $archiveName = 'LLVM-14.0.6-win64.7z'
+          $archiveUrl  = 'https://github.com/PLC-lang/llvm-package-windows/releases/download/v14.0.6/LLVM-14.0.6-win64.7z'
+
+          $workspace = $env:GITHUB_WORKSPACE
+          $dest = Join-Path $workspace 'LLVM'
+          $archivePath = Join-Path $workspace $archiveName
+
+          # 创建目录
+          New-Item -ItemType Directory -Path $dest -Force | Out-Null
+
+          # 下载压缩包（使用 PowerShell 原生命令，避免依赖 wget）
+          Write-Output "Downloading $archiveUrl -> $archivePath"
+          Invoke-WebRequest -Uri $archiveUrl -OutFile $archivePath
+
+          # 确保有 7z（在 runner 上通常存在；若不存在，用 choco 安装）
+          if (-not (Get-Command 7z -ErrorAction SilentlyContinue)) {
+            Write-Output '7z not found, installing 7zip via choco'
+            choco install 7zip -y
+          }
+
+          # 解压到目标目录（注意 -o 参数不能有空格）
+          & 7z x $archivePath ("-o$dest") -y
+          if ($LASTEXITCODE -ne 0) {
+            Write-Error "7z 解压失败，退出码 $LASTEXITCODE"
+            exit $LASTEXITCODE
+          }
+
+          # 尝试定位 bin 目录（直接在 $dest 下或子目录中）
+          $bin = Join-Path $dest 'bin'
+          if (-not (Test-Path $bin)) {
+            $firstDir = Get-ChildItem -Path $dest -Directory -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($firstDir) {
+              $altBin = Join-Path $firstDir.FullName 'bin'
+              if (Test-Path $altBin) { $bin = $altBin }
+            }
+          }
+
+          if (-not (Test-Path $bin)) {
+            Write-Warning "未能找到 bin 目录，解压包内部结构可能不同，请检查 $dest"
+          } else {
+            Write-Output "LLVM bin 目录: $bin"
+            # 把 bin 追加到 GITHUB_PATH，使其在后续 steps 可用
+            $bin | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+            # 并立即在当前 step 生效
+            $env:PATH = "$bin;$env:PATH"
+            Write-Output "已把 $bin 添加到 PATH"
+          }
 
       - name: 构建（Windows MSVC）
         run: |
