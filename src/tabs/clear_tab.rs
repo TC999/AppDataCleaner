@@ -626,8 +626,14 @@ impl ClearTabState {
             // 发送完成状态消息
             if let Some(tx) = temp_tx {
                 // 发送状态更新
-                let _ = tx.send(("__STATUS__Temp目录清理完成".to_string(), 0));
-                
+                let status_message = format!(
+                    "Temp目录清理完成: 已清理 {} 个文件，总计 {}，跳过 {} 个文件",
+                    deleted_files,
+                    crate::utils::format_size(total_cleaned_size),
+                    skipped_files
+                );
+                let _ = tx.send((format!("__STATUS__{}", status_message), 0));
+
                 // 发送完成标志
                 let _ = tx.send(("__TEMP_CLEANUP_COMPLETE__".to_string(), 0));
             }
