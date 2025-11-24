@@ -20,6 +20,8 @@ pub struct ClearTabState {
     pub rx: Option<Receiver<(String, u64)>>,
     pub total_size: u64,
 
+    pub db: Database, // 新增字段
+
     // 界面状态字段
     pub confirm_delete: Option<(String, bool)>,
     pub status: Option<String>,
@@ -56,7 +58,10 @@ impl Default for ClearTabState {
     fn default() -> Self {
         let (tx, rx) = std::sync::mpsc::channel();
 
+        let db_path = get_default_db_path();
+        let db = Database::new(&db_path).unwrap_or_else(|_| panic!("无法初始化数据库: {}", db_path));
         Self {
+            db,
             // 基础字段初始化
             is_scanning: false,
             folder_data: vec![],
@@ -132,7 +137,12 @@ impl ClearTabState {
         self.show_folder_actions(ui, folder);
     }
     pub fn new() -> Self {
-        Self::default()
+        let db_path = get_default_db_path();
+        let db = Database::new(&db_path).unwrap_or_else(|_| panic!("无法初始化数据库: {}", db_path));
+        Self {
+            db,
+            ..Default::default()
+        }
     }
 
     pub fn set_generate_description_callback<F>(&mut self, callback: F)
@@ -158,6 +168,7 @@ impl ClearTabState {
         folder_data: &mut Vec<(String, u64)>, // 新增参数
         stats: &mut Stats,                    // 新增参数
         stats_logger: &StatsLogger,           // 新增参数
+        db: &Database,                        // 新增参数
     ) {
         if let Some((folder_name, is_bulk)) = confirm_delete.clone() {
             if is_bulk && folder_name == "BULK_DELETE" {
@@ -175,7 +186,7 @@ impl ClearTabState {
                             {
                                 let full_path = base_path.join(&folder);
                                 if let Err(err) =
-                                    delete::delete_folder(&full_path, stats, stats_logger)
+                                    delete::delete_folder(&full_path, stats, stats_logger, db, selected_appdata_folder)
                                 {
                                     logger::log_error(&format!("批量删除失败: {}", err));
                                 } else {
@@ -194,7 +205,7 @@ impl ClearTabState {
                     if confirm {
                         if let Some(base_path) = utils::get_appdata_dir(selected_appdata_folder) {
                             let full_path = base_path.join(&folder_name);
-                            if let Err(err) = delete::delete_folder(&full_path, stats, stats_logger)
+                            if let Err(err) = delete::delete_folder(&full_path, stats, stats_logger, db, selected_appdata_folder)
                             {
                                 logger::log_error(&format!("删除失败: {}", err));
                             } else {
@@ -391,14 +402,15 @@ impl ClearTabState {
 
         // 删除确认弹窗逻辑
         confirmation::handle_delete_confirmation(
-            ui.ctx(),                      // 传递上下文
-            &mut self.confirm_delete,      // 传递确认删除状态
-            &self.selected_appdata_folder, // 传递选中的 AppData 文件夹
-            &mut self.status,              // 传递状态
-            &mut self.folder_data,         // 传递文件夹数据
-            &mut self.selected_folders,    // 传递选中的文件夹集合
-            &mut self.stats,               // 传递统计数据
-            &self.stats_logger,            // 传递统计日志记录器
+            ui.ctx(),
+            &mut self.confirm_delete,
+            &self.selected_appdata_folder,
+            &mut self.status,
+            &mut self.folder_data,
+            &mut self.selected_folders,
+            &mut self.stats,
+            &self.stats_logger,
+            &self.db,
         );
 
         // 扫描按钮和生成描述按钮放在一起
@@ -563,8 +575,6 @@ impl ClearTabState {
         self.status = Some("开始清理Temp目录...".to_string());
         
         // 克隆所需的数据用于线程
-        let stats_logger_clone = self.stats_logger.clone();
-        let mut stats_clone = self.stats.clone();
         
         // 保存tx的引用，用于发送状态消息
         let temp_tx = self.tx.clone();
