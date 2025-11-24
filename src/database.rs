@@ -57,7 +57,7 @@ impl Database {
     /// 获取指定文件夹类型的所有记录
     pub fn get_folders_by_type(&self, folder_type: &str) -> SqliteResult<Vec<FolderRecord>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, folder_type, folder_name, folder_size, last_modified, created_at, updated_at 
+            "SELECT id, folder_type, folder_name, folder_size, last_modified, created_at, updated_at \
              FROM folder_scans WHERE folder_type = ?1 ORDER BY folder_name",
         )?;
 
@@ -84,6 +84,18 @@ impl Database {
             records.push(row?);
         }
         Ok(records)
+    }
+
+    /// 删除指定类型和名称的单个文件夹记录
+    pub fn delete_folder_record(&self, folder_type: &str, folder_name: &str) -> SqliteResult<()> {
+        let deleted = self.conn.execute(
+            "DELETE FROM folder_scans WHERE folder_type = ?1 AND folder_name = ?2",
+            params![folder_type, folder_name],
+        )?;
+        if deleted > 0 {
+            logger::log_info(&format!("已从数据库删除记录: {} / {}", folder_type, folder_name));
+        }
+        Ok(())
     }
 
     /// 插入或更新文件夹记录
