@@ -40,13 +40,14 @@ pub fn show_confirmation(
 
 pub fn handle_delete_confirmation(
     ctx: &egui::Context,
-    confirm_delete: &mut Option<(String, bool)>,
+    confirm_delete: &mut Option<(String, bool)> ,
     selected_appdata_folder: &str,
     status: &mut Option<String>,
     folder_data: &mut Vec<(String, u64)>,   // 新增参数
     selected_folders: &mut HashSet<String>, // 传入 selected_folders
     stats: &mut Stats,                      // 新增参数
     stats_logger: &StatsLogger,             // 新增参数
+    db: &crate::database::Database,         // 新增参数
 ) {
     if let Some((folder_name, is_bulk)) = confirm_delete.clone() {
         let message = if is_bulk && folder_name == "BULK_DELETE" {
@@ -58,11 +59,10 @@ pub fn handle_delete_confirmation(
         if let Some(confirm) = show_confirmation(ctx, &message, status) {
             if confirm {
                 if is_bulk && folder_name == "BULK_DELETE" {
-                    // 执行批量删除逻辑，仅针对 selected_folders
                     for folder in selected_folders.iter() {
                         if let Some(base_path) = utils::get_appdata_dir(selected_appdata_folder) {
                             let full_path = base_path.join(folder);
-                            if let Err(err) = delete::delete_folder(&full_path, stats, stats_logger)
+                            if let Err(err) = delete::delete_folder(&full_path, stats, stats_logger, db, selected_appdata_folder)
                             {
                                 logger::log_error(&format!("批量删除失败: {}", err));
                             } else {
@@ -74,10 +74,9 @@ pub fn handle_delete_confirmation(
                     selected_folders.clear(); // 清空选定文件夹列表
                     *status = Some("批量删除完成".to_string());
                 } else {
-                    // 单个删除逻辑
                     if let Some(base_path) = utils::get_appdata_dir(selected_appdata_folder) {
                         let full_path = base_path.join(&folder_name);
-                        if let Err(err) = delete::delete_folder(&full_path, stats, stats_logger) {
+                        if let Err(err) = delete::delete_folder(&full_path, stats, stats_logger, db, selected_appdata_folder) {
                             logger::log_error(&format!("删除失败: {}", err));
                         } else {
                             logger::log_info(&format!("已删除文件夹: {}", folder_name));
