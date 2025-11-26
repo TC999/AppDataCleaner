@@ -21,14 +21,15 @@ pub struct Database {
 impl Database {
     /// 创建或打开数据库连接
     pub fn new(db_path: &str) -> SqliteResult<Self> {
+        let is_new = !Path::new(db_path).exists();
         let conn = Connection::open(db_path)?;
         let db = Database { conn };
-        db.init_schema()?;
+        db.init_schema(is_new)?;
         Ok(db)
     }
 
     /// 初始化数据库架构
-    fn init_schema(&self) -> SqliteResult<()> {
+    fn init_schema(&self, is_new: bool) -> SqliteResult<()> {
         self.conn.execute(
             "CREATE TABLE IF NOT EXISTS folder_scans (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,7 +51,9 @@ impl Database {
             [],
         )?;
 
-        logger::log_info("数据库架构初始化完成");
+        if is_new {
+            logger::log_info("数据库架构初始化完成");
+        }
         Ok(())
     }
 
