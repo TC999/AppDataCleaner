@@ -150,26 +150,26 @@ impl Database {
 
     /// 删除指定文件夹类型中不存在的文件夹记录
     pub fn remove_missing_folders(&self, folder_type: &str, existing_folders: &[String]) -> SqliteResult<()> {
-        if existing_folders.is_empty() {
-            return Ok(());
-        }
-
-        // 构建 NOT IN 子句的占位符
-        let placeholders: Vec<&str> = existing_folders.iter().map(|_| "?").collect();
-        let query = format!(
-            "DELETE FROM folder_scans WHERE folder_type = ? AND folder_name NOT IN ({})",
-            placeholders.join(",")
-        );
-
-        let mut params = vec![folder_type.to_string()];
-        params.extend(existing_folders.iter().cloned());
-
-        let deleted = self.conn.execute(&query, rusqlite::params_from_iter(params))?;
-        
+        let deleted = if existing_folders.is_empty() {
+            // 如果没有任何现有文件夹，删除该类型下所有记录
+            self.conn.execute(
+                "DELETE FROM folder_scans WHERE folder_type = ?",
+                params![folder_type],
+            )?
+        } else {
+            // 构建 NOT IN 子句的占位符
+            let placeholders: Vec<&str> = existing_folders.iter().map(|_| "?").collect();
+            let query = format!(
+                "DELETE FROM folder_scans WHERE folder_type = ? AND folder_name NOT IN ({})",
+                placeholders.join(",")
+            );
+            let mut params = vec![folder_type.to_string()];
+            params.extend(existing_folders.iter().cloned());
+            self.conn.execute(&query, rusqlite::params_from_iter(params))?
+        };
         if deleted > 0 {
             logger::log_info(&format!("从数据库中删除了 {} 个不存在的文件夹记录", deleted));
         }
-        
         Ok(())
     }
 

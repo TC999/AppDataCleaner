@@ -123,6 +123,10 @@ fn scan_with_database(tx: Sender<(String, u64)>, folder_type: &str) -> Result<()
         
         // 清理不存在的文件夹记录
         let existing_folder_names: Vec<String> = folder_records.iter().map(|r| r.folder_name.clone()).collect();
+        logger::log_info(&format!(
+            "同步数据库，现有文件夹名: {:?}", existing_folder_names
+        ));
+        println!("同步数据库，现有文件夹名: {:?}", existing_folder_names);
         db.remove_missing_folders(folder_type, &existing_folder_names)?;
         
         logger::log_info(&format!("数据库更新完成，共处理 {} 个文件夹", folder_records.len()));
