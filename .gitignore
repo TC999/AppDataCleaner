@@ -31,3 +31,5 @@ adcignore.txt
 
 # yaml 规则文件
 *.yaml
+
+*.db
