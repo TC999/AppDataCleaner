@@ -14,7 +14,19 @@ pub fn format_size(size: u64) -> String {
 use dirs_next as dirs;
 use std::path::PathBuf;
 
+// 自定义文件夹类型前缀
+pub const CUSTOM_FOLDER_PREFIX: &str = "Custom:";
+
 pub fn get_appdata_dir(folder_type: &str) -> Option<PathBuf> {
+    // 如果是自定义路径（以Custom:开头），直接返回路径
+    if folder_type.starts_with(CUSTOM_FOLDER_PREFIX) {
+        let path_str = folder_type.strip_prefix(CUSTOM_FOLDER_PREFIX)?;
+        if path_str.is_empty() {
+            return None; // 空路径无效
+        }
+        return Some(PathBuf::from(path_str));
+    }
+    
     match folder_type {
         "Roaming" => dirs::data_dir(),
         "Local" => dirs::cache_dir(),

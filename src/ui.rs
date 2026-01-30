@@ -165,9 +165,19 @@ impl AppDataCleaner {
                                 ui.close_menu();
                             }
                         }
+                        ui.separator();
+                        if ui.button("选择自定义文件夹...").clicked() {
+                            self.clear_tab.open_custom_folder_dialog();
+                            ui.close_menu();
+                        }
                     });
                     // 当前目标文件夹显示
-                    ui.label(format!("当前目标: {}", self.clear_tab.selected_appdata_folder));
+                    let display_name = if let Some(custom_path) = &self.clear_tab.custom_folder_path {
+                        format!("自定义: {}", custom_path.display())
+                    } else {
+                        self.clear_tab.selected_appdata_folder.clone()
+                    };
+                    ui.label(format!("当前目标: {}", display_name));
                     
                     ui.separator(); // 分隔符
                     
