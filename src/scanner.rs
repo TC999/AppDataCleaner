@@ -25,6 +25,153 @@ pub fn scan_appdata(tx: Sender<(String, u64)>, folder_type: &str) {
     });
 }
 
+// 新增：扫描自定义文件夹
+pub fn scan_custom_folder(tx: Sender<(String, u64)>, custom_path: PathBuf) {
+    println!("开始扫描自定义文件夹: {}", custom_path.display());
+    logger::log_info(&format!("开始扫描自定义文件夹: {}", custom_path.display()));
+
+    thread::spawn(move || {
+        if let Err(e) = scan_custom_folder_with_database(tx.clone(), &custom_path) {
+            logger::log_error(&format!("扫描自定义文件夹时发生错误: {}", e));
+            let _ = tx.send(("__SCAN_COMPLETE__".to_string(), 0));
+        }
+    });
+}
+
+fn scan_custom_folder_with_database(tx: Sender<(String, u64)>, custom_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+    let db_path = get_default_db_path();
+    let db_exists = database_exists(&db_path);
+    
+    // 打开或创建数据库
+    let db = Database::new(&db_path)?;
+    
+    // 使用路径的字符串表示作为folder_type
+    let folder_type = format!("Custom:{}", custom_path.display());
+    
+    // 如果数据库存在且有该类型的数据，先从数据库加载
+    if db_exists && db.has_data_for_type(&folder_type)? {
+        logger::log_info(&format!("从数据库加载自定义文件夹数据: {}", custom_path.display()));
+        
+        tx.send(("__STATUS__从缓存加载数据...".to_string(), 0))?;
+        
+        let cached_records = db.get_folders_by_type(&folder_type)?;
+        for record in &cached_records {
+            tx.send((record.folder_name.clone(), record.folder_size))?;
+        }
+        
+        logger::log_info(&format!("从数据库加载了 {} 个文件夹记录", cached_records.len()));
+        
+        tx.send(("__STATUS__正在检查文件系统变化...".to_string(), 0))?;
+    }
+    
+    // 执行实际的文件系统扫描
+    let fs_scan_results = perform_custom_folder_scan(custom_path)?;
+    
+    if !fs_scan_results.is_empty() {
+        // 创建文件夹记录
+        let folder_records: Vec<FolderRecord> = fs_scan_results
+            .iter()
+            .map(|(name, size)| FolderRecord {
+                id: None,
+                folder_type: folder_type.clone(),
+                folder_name: name.clone(),
+                folder_size: *size,
+                last_modified: Utc::now(),
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+            })
+            .collect();
+        
+        // 如果数据库中已有数据，比较并更新；否则直接插入
+        if db_exists && db.has_data_for_type(&folder_type)? {
+            let existing_records = db.get_folders_by_type(&folder_type)?;
+            let mut changes_detected = false;
+            
+            for new_record in &folder_records {
+                if let Some(existing) = existing_records.iter().find(|r| r.folder_name == new_record.folder_name) {
+                    if existing.folder_size != new_record.folder_size {
+                        tx.send((new_record.folder_name.clone(), new_record.folder_size))?;
+                        changes_detected = true;
+                        logger::log_info(&format!(
+                            "检测到文件夹 '{}' 大小变化: {} -> {}", 
+                            new_record.folder_name,
+                            existing.folder_size,
+                            new_record.folder_size
+                        ));
+                    }
+                } else {
+                    tx.send((new_record.folder_name.clone(), new_record.folder_size))?;
+                    changes_detected = true;
+                    logger::log_info(&format!("发现新文件夹: {}", new_record.folder_name));
+                }
+            }
+            
+            let new_folder_names: Vec<String> = folder_records.iter().map(|r| r.folder_name.clone()).collect();
+            for existing in &existing_records {
+                if !new_folder_names.contains(&existing.folder_name) {
+                    changes_detected = true;
+                    logger::log_info(&format!("文件夹已被删除: {}", existing.folder_name));
+                }
+            }
+            
+            if changes_detected {
+                logger::log_info("检测到变化，更新数据库");
+            } else {
+                logger::log_info("未检测到变化，使用缓存数据");
+            }
+        } else {
+            logger::log_info("第一次扫描自定义文件夹，创建数据库记录");
+            for (name, size) in &fs_scan_results {
+                tx.send((name.clone(), *size))?;
+            }
+        }
+        
+        // 更新数据库
+        db.batch_upsert_folders(&folder_records)?;
+        
+        // 清理不存在的文件夹记录
+        let existing_folder_names: Vec<String> = folder_records.iter().map(|r| r.folder_name.clone()).collect();
+        db.remove_missing_folders(&folder_type, &existing_folder_names)?;
+        
+        logger::log_info(&format!("数据库更新完成，共处理 {} 个文件夹", folder_records.len()));
+    } else {
+        logger::log_info("自定义文件夹中未找到任何子文件夹");
+    }
+    
+    // 发送扫描完成标志
+    tx.send(("__SCAN_COMPLETE__".to_string(), 0))?;
+    logger::log_info(&format!("自定义文件夹 {} 扫描完成", custom_path.display()));
+    
+    Ok(())
+}
+
+fn perform_custom_folder_scan(custom_path: &PathBuf) -> Result<Vec<(String, u64)>, Box<dyn std::error::Error>> {
+    let mut results = Vec::new();
+    
+    if !custom_path.exists() {
+        return Err(format!("自定义文件夹不存在: {}", custom_path.display()).into());
+    }
+    
+    if !custom_path.is_dir() {
+        return Err(format!("指定的路径不是文件夹: {}", custom_path.display()).into());
+    }
+    
+    // 扫描自定义文件夹中的所有子文件夹
+    if let Ok(entries) = fs::read_dir(custom_path) {
+        for entry in entries.flatten() {
+            if let Ok(metadata) = entry.metadata() {
+                if metadata.is_dir() {
+                    let folder_name = entry.file_name().to_string_lossy().to_string();
+                    let size = calculate_folder_size(&entry.path());
+                    results.push((folder_name, size));
+                }
+            }
+        }
+    }
+    
+    Ok(results)
+}
+
 fn scan_with_database(tx: Sender<(String, u64)>, folder_type: &str) -> Result<(), Box<dyn std::error::Error>> {
     let db_path = get_default_db_path();
     let db_exists = database_exists(&db_path);

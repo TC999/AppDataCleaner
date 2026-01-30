@@ -15,6 +15,12 @@ use dirs_next as dirs;
 use std::path::PathBuf;
 
 pub fn get_appdata_dir(folder_type: &str) -> Option<PathBuf> {
+    // 如果是自定义路径（以Custom:开头），直接返回路径
+    if folder_type.starts_with("Custom:") {
+        let path_str = folder_type.strip_prefix("Custom:").unwrap_or("");
+        return Some(PathBuf::from(path_str));
+    }
+    
     match folder_type {
         "Roaming" => dirs::data_dir(),
         "Local" => dirs::cache_dir(),

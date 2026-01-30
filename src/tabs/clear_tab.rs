@@ -16,6 +16,7 @@ pub struct ClearTabState {
     pub is_scanning: bool,
     pub folder_data: Vec<(String, u64)>,
     pub selected_appdata_folder: String,
+    pub custom_folder_path: Option<PathBuf>, // 新增：自定义文件夹路径
     pub tx: Option<Sender<(String, u64)>>,
     pub rx: Option<Receiver<(String, u64)>>,
     pub total_size: u64,
@@ -66,6 +67,7 @@ impl Default for ClearTabState {
             is_scanning: false,
             folder_data: vec![],
             selected_appdata_folder: "Roaming".to_string(),
+            custom_folder_path: None, // 初始化为None
             tx: Some(tx),
             rx: Some(rx),
             total_size: 0,
@@ -533,6 +535,7 @@ impl ClearTabState {
 
     // 设置选中的AppData文件夹
     pub fn set_selected_appdata_folder(&mut self, folder: String) {
+        self.custom_folder_path = None; // 清除自定义文件夹路径
         self.selected_appdata_folder = folder.clone();
         self.folder_data.clear();
         self.is_scanning = false;
@@ -648,5 +651,43 @@ impl ClearTabState {
                 let _ = tx.send(("__TEMP_CLEANUP_COMPLETE__".to_string(), 0));
             }
         });
+    }
+
+    // 新增：打开自定义文件夹选择对话框
+    pub fn open_custom_folder_dialog(&mut self) {
+        use native_dialog::FileDialog;
+        
+        logger::log_info("打开自定义文件夹选择对话框");
+        
+        // 打开文件夹选择对话框
+        match FileDialog::new()
+            .set_location("~")
+            .show_open_single_dir()
+        {
+            Ok(Some(path)) => {
+                logger::log_info(&format!("用户选择了自定义文件夹: {}", path.display()));
+                self.set_custom_folder(path);
+            }
+            Ok(None) => {
+                logger::log_info("用户取消了文件夹选择");
+            }
+            Err(e) => {
+                logger::log_error(&format!("打开文件夹选择对话框失败: {}", e));
+                self.status = Some(format!("打开文件夹选择对话框失败: {}", e));
+            }
+        }
+    }
+
+    // 新增：设置自定义文件夹并触发扫描
+    pub fn set_custom_folder(&mut self, path: PathBuf) {
+        self.custom_folder_path = Some(path.clone());
+        self.selected_appdata_folder = format!("Custom:{}", path.display());
+        self.folder_data.clear();
+        self.is_scanning = true;
+        self.status = Some("扫描自定义文件夹中...".to_string());
+        
+        if let Some(tx) = self.tx.clone() {
+            crate::scanner::scan_custom_folder(tx, path);
+        }
     }
 }
