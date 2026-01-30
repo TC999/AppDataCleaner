@@ -209,6 +209,40 @@ impl AppDataCleaner {
         // 移动窗口
         self.clear_tab.move_module.show_move_window(ctx);
     }
+
+    fn show_custom_location_window(&mut self, ctx: &egui::Context) {
+        if self.show_custom_location_window {
+            egui::Window::new("添加自定义位置")
+                .collapsible(false)
+                .resizable(false)
+                .show(ctx, |ui| {
+                    ui.label("路径名称:");
+                    let mut name = String::new();
+                    ui.text_edit_singleline(&mut name);
+
+                    ui.label("路径地址:");
+                    let mut path = String::new();
+                    ui.horizontal(|ui| {
+                        ui.text_edit_singleline(&mut path);
+                        if ui.button("选择...").clicked() {
+                            // 打开文件夹选择对话框逻辑（需实现）
+                        }
+                    });
+
+                    ui.horizontal(|ui| {
+                        if ui.button("确定").clicked() {
+                            if let Some(custom_locations) = &mut self.custom_locations {
+                                custom_locations.push((name.clone(), path.clone()));
+                            }
+                            self.show_custom_location_window = false;
+                        }
+                        if ui.button("取消").clicked() {
+                            self.show_custom_location_window = false;
+                        }
+                    });
+                });
+        }
+    }
 }
 
 impl eframe::App for AppDataCleaner {
