@@ -6,6 +6,7 @@ use std::{fs, path::PathBuf};
 
 use crate::database::{Database, FolderRecord, get_default_db_path, database_exists};
 use crate::logger;
+use crate::utils::CUSTOM_FOLDER_PREFIX;
 use chrono::Utc;
 use dirs_next as dirs; // 引入日志模块
 
@@ -26,10 +27,11 @@ pub fn scan_appdata(tx: Sender<(String, u64)>, folder_type: &str) {
 }
 
 // 新增：扫描自定义文件夹
-pub fn scan_custom_folder(tx: Sender<(String, u64)>, custom_path: PathBuf) {
+pub fn scan_custom_folder(tx: Sender<(String, u64)>, custom_path: &Path) {
     println!("开始扫描自定义文件夹: {}", custom_path.display());
     logger::log_info(&format!("开始扫描自定义文件夹: {}", custom_path.display()));
 
+    let custom_path = custom_path.to_path_buf();
     thread::spawn(move || {
         if let Err(e) = scan_custom_folder_with_database(tx.clone(), &custom_path) {
             logger::log_error(&format!("扫描自定义文件夹时发生错误: {}", e));
@@ -38,7 +40,7 @@ pub fn scan_custom_folder(tx: Sender<(String, u64)>, custom_path: PathBuf) {
     });
 }
 
-fn scan_custom_folder_with_database(tx: Sender<(String, u64)>, custom_path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
+fn scan_custom_folder_with_database(tx: Sender<(String, u64)>, custom_path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let db_path = get_default_db_path();
     let db_exists = database_exists(&db_path);
     
@@ -46,7 +48,7 @@ fn scan_custom_folder_with_database(tx: Sender<(String, u64)>, custom_path: &Pat
     let db = Database::new(&db_path)?;
     
     // 使用路径的字符串表示作为folder_type
-    let folder_type = format!("Custom:{}", custom_path.display());
+    let folder_type = format!("{}{}", CUSTOM_FOLDER_PREFIX, custom_path.display());
     
     // 如果数据库存在且有该类型的数据，先从数据库加载
     if db_exists && db.has_data_for_type(&folder_type)? {
@@ -145,7 +147,7 @@ fn scan_custom_folder_with_database(tx: Sender<(String, u64)>, custom_path: &Pat
     Ok(())
 }
 
-fn perform_custom_folder_scan(custom_path: &PathBuf) -> Result<Vec<(String, u64)>, Box<dyn std::error::Error>> {
+fn perform_custom_folder_scan(custom_path: &Path) -> Result<Vec<(String, u64)>, Box<dyn std::error::Error>> {
     let mut results = Vec::new();
     
     if !custom_path.exists() {

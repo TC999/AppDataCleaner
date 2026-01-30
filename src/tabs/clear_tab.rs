@@ -680,14 +680,17 @@ impl ClearTabState {
 
     // 新增：设置自定义文件夹并触发扫描
     pub fn set_custom_folder(&mut self, path: PathBuf) {
+        use crate::utils::CUSTOM_FOLDER_PREFIX;
+        
         self.custom_folder_path = Some(path.clone());
-        self.selected_appdata_folder = format!("Custom:{}", path.display());
+        self.selected_appdata_folder = format!("{}{}", CUSTOM_FOLDER_PREFIX, path.display());
         self.folder_data.clear();
+        self.selected_folders.clear(); // 清空选中的文件夹集合
         self.is_scanning = true;
         self.status = Some("扫描自定义文件夹中...".to_string());
         
         if let Some(tx) = self.tx.clone() {
-            crate::scanner::scan_custom_folder(tx, path);
+            crate::scanner::scan_custom_folder(tx, &path);
         }
     }
 }
