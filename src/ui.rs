@@ -25,12 +25,16 @@ pub struct AppDataCleaner {
     // AI UI标签页
     ai_ui: AIConfigurationUI,
     ai_rx: Option<Receiver<(String, String, String)>>, // 添加 AI 响应接收器
+
+    // 自定义位置相关
+    custom_locations: Option<Vec<(String, String)>>, // (name, path)
+    show_custom_location_window: bool,
 }
 
 impl Default for AppDataCleaner {
     fn default() -> Self {
-        let (ai_tx, ai_rx) = std::sync::mpsc::channel();  // 创建 AI 通信通道
-        
+        let (ai_tx, ai_rx) = std::sync::mpsc::channel();
+
         // 加载AI配置
         let ai_config = match AIConfig::load_from_file("folders_description.yaml") {
             Ok(config) => {
@@ -46,75 +50,25 @@ impl Default for AppDataCleaner {
         // 创建 AIHandler 并包装在 Arc<Mutex<>> 中
         let ai_handler = Arc::new(Mutex::new(AIHandler::new(
             ai_config.clone(),
-            Some(ai_tx.clone())
+            Some(ai_tx.clone()),
         )));
 
         let ai_ui = AIConfigurationUI::new(ai_config.clone(), ai_handler.clone());
 
         // 创建清理标签页状态
-        let mut clear_tab = ClearTabState::default();
-        
-        // 设置回调函数 - 使用 String 而不是引用
-        {
-            let ai_handler_clone = ai_handler.clone();
-            clear_tab.set_generate_description_callback(move |folder| {
-                let folder_name = folder.to_string();
-                // 这里使用了副本，不再引用原始对象
-                let selected_folder_clone = "Roaming".to_string(); // 默认值，将在实际使用时更新
-                let handler = ai_handler_clone.clone();
-                
-                std::thread::spawn(move || {
-                    let rt = tokio::runtime::Runtime::new().unwrap();
-                    rt.block_on(async {
-                        if let Ok(mut handler) = handler.lock() {
-                            if let Err(e) = handler.generate_single_description(folder_name.clone(), selected_folder_clone).await {
-                                logger::log_error(&format!("生成描述失败: {}", e));
-                            }
-                        }
-                    });
-                });
-            });
-        }
-
-        // 设置批量生成描述回调 - 不再从clear_tab捕获变量
-        {
-            let ai_handler_clone = ai_handler.clone();
-            clear_tab.set_generate_all_descriptions_callback(move |folder_data, selected_folder| {
-                let folder_data = folder_data.clone();
-                let selected_folder = selected_folder.to_string();
-                let handler = ai_handler_clone.clone();
-                
-                std::thread::spawn(move || {
-                    let rt = tokio::runtime::Runtime::new().unwrap();
-                    rt.block_on(async {
-                        if let Ok(mut handler) = handler.lock() {
-                            if let Err(e) = handler.generate_all_descriptions(folder_data.clone(), selected_folder).await {
-                                logger::log_error(&format!("批量生成描述失败: {}", e));
-                            }
-                        }
-                    });
-                });
-            });
-        }
+        let clear_tab = ClearTabState::default();
 
         Self {
-            // 界面状态初始化
+            current_tab: "主页".to_string(),
             show_about_window: false,
-            current_tab: "主页".to_string(),  // 默认选中主页标签
-
-            // 日志相关初始化
             is_logging_enabled: false,
             previous_logging_state: false,
-
-            // 主题相关初始化
-            dark_mode: true,  // 默认使用深色模式
-
-            // 清理标签页初始化 
+            dark_mode: true,
             clear_tab,
-
-            // AI相关初始化
             ai_ui,
-            ai_rx: Some(ai_rx),  // 保存 AI 响应接收器
+            ai_rx: Some(ai_rx),
+            custom_locations: Some(vec![]),
+            show_custom_location_window: false,
         }
     }
 }
@@ -171,10 +125,20 @@ impl AppDataCleaner {
                     
                     ui.separator(); // 分隔符
                     
-                    // 主题切换按钮
-                    let theme_text = if self.dark_mode { "☀ 浅色" } else { "🌙 深色" };
-                    if ui.button(theme_text).clicked() {
-                        self.dark_mode = !self.dark_mode;
+                    // 动态添加自定义位置
+                    if let Some(custom_locations) = &self.custom_locations {
+                        for (name, path) in custom_locations {
+                            if ui.button(name).clicked() {
+                                self.clear_tab.set_selected_appdata_folder(path.clone());
+                                ui.close_menu();
+                            }
+                        }
+                    }
+                    ui.separator();
+                    // 始终在最下方的自定义位置入口
+                    if ui.button("自定义位置...").clicked() {
+                        self.show_custom_location_window = true;
+                        ui.close_menu();
                     }
                 });
             });
