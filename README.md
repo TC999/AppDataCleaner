@@ -9,6 +9,10 @@
  ![repo-size][repo-size-image]
  <!--[![hits][hits-image]][hits-url1]-->
 
+ > [!important]
+>
+> 由于现有源码架构混乱且难以维护，即将开始重写，新版源码将采用前后端分离模式
+
 完全开源免费的清理 Appdata 的小工具！完全使用 ChatGPT 生成！
 
 <details>
