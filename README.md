@@ -41,11 +41,11 @@
 
 ## 星标历史
 
-<a href="https://star-history.com/#TC999/AppDataCleaner&Date">
+<a href="https://star-history.dera.page/#TC999/AppDataCleaner&Date">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=TC999/AppDataCleaner&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=TC999/AppDataCleaner&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=TC999/AppDataCleaner&type=Date" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=TC999/AppDataCleaner&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=TC999/AppDataCleaner&type=Date" />
+   <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=TC999/AppDataCleaner&type=Date" />
  </picture>
 </a>
 
